@@ -93,3 +93,28 @@ describe("Testing evaluateFile function of jsonnet library", () => {
 		expect(result).to.eql(expected);
 	});
 });
+
+describe("Testing extString function of jsonnet library", () => {
+	it("Test extString function", () => {
+		let result = JSON.parse(jsonnet.extString("name", "Alice").evaluateSnippet(`local username = std.extVar('name');
+		local Person(name='Alice') = {
+		  name: name,
+		  welcome: 'Hello ' + name + '!',
+		};
+		{
+		  person1: Person(username),
+		  person2: Person('Bob'),
+		}`))
+		let expected = JSON.parse(`{
+			"person1": {
+				"name": "Alice",
+				"welcome": "Hello Alice!"
+			},
+			"person2": {
+				"name": "Bob",
+				"welcome": "Hello Bob!"
+			}
+		}`);
+		expect(result).to.eql(expected);
+	});
+})
