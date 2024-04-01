@@ -45,10 +45,8 @@ fn arakoolib_uncached() -> ObjValue {
 #[derive(Trace, Clone)]
 pub struct ArakooContextInitializer {
     /// When we don't need to support legacy-this-file, we can reuse same context for all files
-    #[cfg(not(feature = "legacy-this-file"))]
     context: jrsonnet_evaluator::Context,
     /// For `populate`
-    #[cfg(not(feature = "legacy-this-file"))]
     stdlib_thunk: Thunk<Val>,
     arakoolib_thunk: Thunk<Val>,
     settings: Rc<RefCell<jrsonnet_stdlib::Settings>>,
@@ -69,19 +67,17 @@ impl ArakooContextInitializer {
         };
         let settings = Rc::new(RefCell::new(settings));
         let stdlib_obj = jrsonnet_stdlib::stdlib_uncached(settings.clone());
-        #[cfg(not(feature = "legacy-this-file"))]
+        
         let stdlib_thunk = Thunk::evaluated(Val::Obj(stdlib_obj));
         let arakoolib_obj = arakoolib_uncached();
         let arakoolib_thunk = Thunk::evaluated(Val::Obj(arakoolib_obj));
         Self {
-            #[cfg(not(feature = "legacy-this-file"))]
             context: {
                 let mut context = ContextBuilder::with_capacity(_s, 1);
                 context.bind("std", stdlib_thunk.clone());
                 context.bind("arakoo", arakoolib_thunk.clone());
                 context.build()
             },
-            #[cfg(not(feature = "legacy-this-file"))]
             stdlib_thunk,
             arakoolib_thunk,
             settings,
@@ -133,11 +129,11 @@ impl jrsonnet_evaluator::ContextInitializer for ArakooContextInitializer {
     fn reserve_vars(&self) -> usize {
         1
     }
-    #[cfg(not(feature = "legacy-this-file"))]
+    
     fn initialize(&self, _s: State, _source: Source) -> jrsonnet_evaluator::Context {
         self.context.clone()
     }
-    #[cfg(not(feature = "legacy-this-file"))]
+    
     fn populate(&self, _for_file: Source, builder: &mut ContextBuilder) {
         builder.bind("std", self.stdlib_thunk.clone());
         builder.bind("arakoo", self.arakoolib_thunk.clone());

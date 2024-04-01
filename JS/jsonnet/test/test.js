@@ -123,3 +123,35 @@ describe("Testing extString function of jsonnet library", () => {
         expect(result).to.eql(expected);
     });
 });
+
+describe("Testing regex function of jsonnet library", () => {
+    it("Test regex function", () => {
+        let result = JSON.parse(jsonnet.evaluateFile("./test_regex.jsonnet"));
+        let expected = JSON.parse(`{
+            "person1":{
+                "name":"Alice Arthur's Magazine",
+                "welcome":"Hello Alice Arthur's Magazine!"
+            },
+            "person2":{
+                "name":"Arthur's Magazine",
+                "welcome":"Hello Arthur's Magazine!"
+            }
+        }`)
+        // console.log("result : ", result);
+        expect(result).to.eql(expected);
+    });
+})
+
+describe("Testing join function of jsonnet library", () => {
+    it("Test join function", () => {
+        let result = JSON.parse(jsonnet.evaluateSnippet(`local a  = "open";
+        local b = "source";
+        {
+            "joined string":arakoo.join(a,b)
+        }`))
+        let expected = JSON.parse(`{
+            "joined string":"opensource"
+        }`)
+        expect(result).to.eql(expected);
+    })
+})
