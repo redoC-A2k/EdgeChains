@@ -2,11 +2,44 @@ use jrsonnet_stdlib::{builtin_type, Settings};
 use std::{cell::{Ref, RefCell, RefMut}, collections::HashMap, rc::Rc};
 
 use jrsonnet_evaluator::{
-    error::ErrorKind::ImportSyntaxError, function::{builtin, FuncVal, TlaArg}, stdlib, tb, trace::PathResolver, ContextBuilder, ContextInitializer, ObjValue, ObjValueBuilder, Result, State, Thunk, Val
+    error::ErrorKind::{self, ImportSyntaxError}, function::{builtin::{ NativeCallback, NativeCallbackHandler}, FuncVal, TlaArg}, stdlib, tb, trace::PathResolver, ContextBuilder, ContextInitializer, Error, ObjValue, ObjValueBuilder, Result, State, Thunk, Val,
+    function::builtin,
 };
 use jrsonnet_gcmodule::Trace;
 use jrsonnet_parser::{IStr, Source};
 use jrsonnet_stdlib::{StdTracePrinter, TracePrinter};
+
+
+
+// Implement NativeCallbackHandler for your native function
+
+#[derive(jrsonnet_gcmodule::Trace)]
+pub struct NativeAddCallback;
+impl NativeCallbackHandler for NativeAddCallback {
+    fn call(&self, args: &[Val]) -> Result<Val, Error> {
+        // Your implementation here
+        // For example:
+        let a: u32; // Assuming the first argument is a number
+        match args[0] {
+            Val::Num(n) => a = n as u32,
+            _ => {
+                return Err(
+                    ErrorKind::RuntimeError("First argument must be a number".into()).into(),
+                )
+            }
+        }
+        let b: u32; // Assuming the second argument is a number
+        match args[1] {
+            Val::Num(n) => b = n as u32,
+            _ => {
+                return Err(
+                    ErrorKind::RuntimeError("Second argument must be a number".into()).into(),
+                )
+            }
+        }
+        Ok(Val::Num((a + b).into()))
+    }
+}
 
 #[builtin]
 fn join(a: String, b: String) -> String {

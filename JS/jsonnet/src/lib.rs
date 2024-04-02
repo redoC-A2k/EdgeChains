@@ -34,6 +34,11 @@ pub struct VM {
     tla_args: GcHashMap<IStr, TlaArg>,
 }
 
+pub struct NativeContext {
+    // pub vm: &'a VM,
+    pub vm: *mut VM,
+}
+
 #[wasm_bindgen]
 pub fn jsonnet_make() -> *mut VM {
     let state = State::default();
@@ -42,7 +47,10 @@ pub fn jsonnet_make() -> *mut VM {
     //     state.clone(),
     //     PathResolver::new_cwd_fallback(),
     // ),ArakooContext::ArakooContextInitializer::default()));
-    state.set_context_initializer(context::ArakooContextInitializer::new(state.clone(), PathResolver::new_cwd_fallback()));
+    state.set_context_initializer(context::ArakooContextInitializer::new(
+        state.clone(),
+        PathResolver::new_cwd_fallback(),
+    ));
     // add_namespace(&state);
     Box::into_raw(Box::new(VM {
         state,
@@ -103,7 +111,6 @@ pub fn jsonnet_evaluate_file(vm: *mut VM, filename: &str) -> String {
     }
 }
 
-
 #[wasm_bindgen]
 pub fn ext_string(vm: *mut VM, key: &str, value: &str) {
     let vm = unsafe { &mut *vm };
@@ -111,11 +118,14 @@ pub fn ext_string(vm: *mut VM, key: &str, value: &str) {
 
     // Dereference the Ref to access the trait object
     let context_initializer = &*vm.state.context_initializer();
-    println!("{:?}",context_initializer.as_any().type_id());
+    println!("{:?}", context_initializer.as_any().type_id());
 
     let context_initializer = vm.state.context_initializer();
 
-    println!("Type of context initializer: {:?}", std::any::type_name_of_val(&*context_initializer));
+    println!(
+        "Type of context initializer: {:?}",
+        std::any::type_name_of_val(&*context_initializer)
+    );
 
     context_initializer
         .as_any()
@@ -124,6 +134,20 @@ pub fn ext_string(vm: *mut VM, key: &str, value: &str) {
         .add_ext_var(key.into(), Val::Str(value.into()));
 }
 
+
+// Function to register the native callback
+// pub extern "C" fn register_native_callback(vm: *mut VM, name: &str, ctx: &NativeContext) {
+//     let vm = unsafe { &*vm };
+//     let any_resolver = vm.state.context_initializer();
+//     any_resolver
+//         .as_any()
+//         .downcast_ref::<jrsonnet_stdlib::ContextInitializer>()
+//         .expect("only stdlib context initializer supported")
+//         .add_native(
+//             name,
+//             NativeCallback::new(vec!["a".to_string(), "b".to_string()], NativeAddCallback),
+//         );
+// }
 
 #[cfg(test)]
 mod test {
@@ -182,5 +206,4 @@ mod test {
 
         println!("pattern found {:?}", search);
     }
-
 }

@@ -29,6 +29,21 @@ if (!isArakoo) {
             return jsonnet_evaluate_file(this.vm, filename);
         }
 
+
+        javascriptNative(functionName, context, args) {
+            // var args = Array.prototype.slice.call(arguments, 2);
+            // var namespaces = functionName.split(".");
+            // var func = namespaces.pop();
+            // for (var i = 0; i < namespaces.length; i++) {
+            //     context = context[namespaces[i]];
+            // }
+            // console.log(context)
+            // return context[func].apply(context, args);
+            // args = args.toString();
+            // return eval(functionName);
+            return context[functionName](...args);
+        }
+
         destroy() {
             jsonnet_destroy(this.vm);
         }
@@ -48,7 +63,7 @@ if (!isArakoo) {
             return __jsonnet_evaluate_snippet(vars, snippet);
         }
 
-        destroy() {}
+        destroy() { }
     };
 }
 
