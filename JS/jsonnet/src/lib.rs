@@ -134,6 +134,50 @@ pub fn ext_string(vm: *mut VM, key: &str, value: &str) {
         .add_ext_var(key.into(), Val::Str(value.into()));
 }
 
+#[wasm_bindgen]
+pub struct CallBackClass {
+    arg: String,
+}
+
+#[wasm_bindgen]
+impl CallBackClass {
+    #[wasm_bindgen(constructor)]
+    pub extern "C" fn new() -> CallBackClass {
+        CallBackClass {
+            arg: String::from(""),
+        }
+    }
+
+    pub extern "C" fn call_native_js_func(&self, f: &js_sys::Function) -> Result<JsValue, JsValue> {
+        let this = JsValue::null();
+        // for x in self.args {
+        // let x = JsValue::from(x);
+        let result = f.call1(&this, &JsValue::from_str(&self.arg));
+        println!("Result of calling JS function: {:?}", result);
+        return result;
+        // }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub extern "C" fn arg(&self) -> String {
+        self.arg.clone()
+    }
+
+    #[wasm_bindgen(setter)]
+    pub extern "C" fn set_arg(&mut self, arg: String) {
+        self.arg = arg;
+    }
+}
+
+// Define a Rust function that accepts a JavaScript callback function
+#[wasm_bindgen]
+pub fn execute_callback(callback: js_sys::Function) {
+    // Call the JavaScript callback function within the closure
+    callback.call0(&JsValue::undefined()).unwrap();
+
+    // Ensure the closure is deallocated to prevent memory leaks
+    // closure.forget();
+}
 
 // Function to register the native callback
 // pub extern "C" fn register_native_callback(vm: *mut VM, name: &str, ctx: &NativeContext) {

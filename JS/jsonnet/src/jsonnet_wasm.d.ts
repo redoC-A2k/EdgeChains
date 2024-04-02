@@ -27,3 +27,23 @@ export function jsonnet_evaluate_file(vm: number, filename: string): string;
 * @param {string} value
 */
 export function ext_string(vm: number, key: string, value: string): void;
+/**
+* @param {Function} callback
+*/
+export function execute_callback(callback: Function): void;
+/**
+*/
+export class CallBackClass {
+  free(): void;
+/**
+*/
+  constructor();
+/**
+* @param {Function} f
+* @returns {any}
+*/
+  call_native_js_func(f: Function): any;
+/**
+*/
+  arg: string;
+}
