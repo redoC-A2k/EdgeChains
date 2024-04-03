@@ -1,15 +1,21 @@
-use std::path::Path;
+use std::{cell::RefCell, collections::HashMap, path::Path};
 
 use jrsonnet_evaluator::{
     apply_tla,
-    function::{builtin, TlaArg},
+    error::ErrorKind,
+    function::{
+        builtin::{self, NativeCallback, NativeCallbackHandler},
+        TlaArg,
+    },
     gc::GcHashMap,
     manifest::{JsonFormat, ManifestFormat},
     tb,
     trace::{CompactFormat, PathResolver, TraceFormat},
     FileImportResolver, ObjValueBuilder, State, Thunk, Val,
 };
+use jrsonnet_gcmodule::Trace;
 use jrsonnet_parser::IStr;
+use std::alloc;
 use wasm_bindgen::prelude::*;
 
 mod context;
@@ -39,14 +45,21 @@ pub struct NativeContext {
     pub vm: *mut VM,
 }
 
+pub struct MapStruct {
+    pub func_map: HashMap<String, js_sys::Function>,
+}
+
+static mut map_struct: Option<MapStruct> = None;
+
 #[wasm_bindgen]
 pub fn jsonnet_make() -> *mut VM {
+    unsafe {
+        map_struct = Some(MapStruct {
+            func_map: HashMap::new(),
+        });
+    }
     let state = State::default();
     state.settings_mut().import_resolver = tb!(FileImportResolver::default());
-    // state.set_context_initializer((jrsonnet_stdlib::ContextInitializer::new(
-    //     state.clone(),
-    //     PathResolver::new_cwd_fallback(),
-    // ),ArakooContext::ArakooContextInitializer::default()));
     state.set_context_initializer(context::ArakooContextInitializer::new(
         state.clone(),
         PathResolver::new_cwd_fallback(),
@@ -130,68 +143,107 @@ pub fn ext_string(vm: *mut VM, key: &str, value: &str) {
     context_initializer
         .as_any()
         .downcast_ref::<context::ArakooContextInitializer>()
-        .expect("only stdlib context initializer supported")
+        .expect("only arakoo context initializer supported")
         .add_ext_var(key.into(), Val::Str(value.into()));
 }
 
-#[wasm_bindgen]
-pub struct CallBackClass {
-    arg: String,
-}
+// #[wasm_bindgen]
+// pub struct CallBackClass {
+//     arg: String,
+//     func: js_sys::Function
+// }
+
+// #[wasm_bindgen]
+// impl CallBackClass {
+//     #[wasm_bindgen(constructor)]
+//     pub extern "C" fn new(f: &js_sys::Function) -> CallBackClass {
+//         CallBackClass {
+//             arg: String::from(""),
+//             func: f.clone(),
+//         }
+//     }
+
+//     pub extern "C" fn call_native_js_func(&self) -> Result<JsValue, JsValue> {
+//         let this = JsValue::null();
+//         // for x in self.args {
+//         // let x = JsValue::from(x);
+//         let result = self.func.call1(&this, &JsValue::from_str(&self.arg));
+//         println!("Result of calling JS function: {:?}", result);
+//         return result;
+//         // }
+//     }
+
+//     #[wasm_bindgen(getter)]
+//     pub extern "C" fn arg(&self) -> String {
+//         self.arg.clone()
+//     }
+
+//     #[wasm_bindgen(setter)]
+//     pub extern "C" fn set_arg(&mut self, arg: String) {
+//         self.arg = arg;
+//     }
+// }
 
 #[wasm_bindgen]
-impl CallBackClass {
-    #[wasm_bindgen(constructor)]
-    pub extern "C" fn new() -> CallBackClass {
-        CallBackClass {
-            arg: String::from(""),
+pub fn get_func(name: &str) -> Option<js_sys::Function> {
+    unsafe {
+        let func = map_struct.as_mut().unwrap().func_map.get(name);
+        match func {
+            Some(f) => Some(f.clone()),
+            None => None,
         }
     }
+}
 
-    pub extern "C" fn call_native_js_func(&self, f: &js_sys::Function) -> Result<JsValue, JsValue> {
-        let this = JsValue::null();
-        // for x in self.args {
-        // let x = JsValue::from(x);
-        let result = f.call1(&this, &JsValue::from_str(&self.arg));
-        println!("Result of calling JS function: {:?}", result);
-        return result;
-        // }
-    }
-
-    #[wasm_bindgen(getter)]
-    pub extern "C" fn arg(&self) -> String {
-        self.arg.clone()
-    }
-
-    #[wasm_bindgen(setter)]
-    pub extern "C" fn set_arg(&mut self, arg: String) {
-        self.arg = arg;
+#[wasm_bindgen]
+pub fn set_func(name: String, func: js_sys::Function) {
+    unsafe {
+        map_struct.as_mut().unwrap().func_map.insert(name, func);
     }
 }
 
-// Define a Rust function that accepts a JavaScript callback function
-#[wasm_bindgen]
-pub fn execute_callback(callback: js_sys::Function) {
-    // Call the JavaScript callback function within the closure
-    callback.call0(&JsValue::undefined()).unwrap();
+#[derive(jrsonnet_gcmodule::Trace)]
+struct NativeJSCallback(String);
 
-    // Ensure the closure is deallocated to prevent memory leaks
-    // closure.forget();
+impl NativeCallbackHandler for NativeJSCallback {
+    fn call(&self, args: &[Val]) -> jrsonnet_evaluator::Result<Val> {
+        let this = JsValue::null();
+        let func = get_func(&self.0).expect("Function not found");
+        let result;
+        if args.len() > 0 {
+            result = func.call1(
+                &this,
+                &JsValue::from_str(
+                    &serde_json::to_string(args).expect("Error converting args to JSON"),
+                ),
+            );
+        } else {
+            result = func.call0(&this);
+        }
+        println!("Result of calling JS function: {:?}", result);
+        if let Ok(r) = result {
+            Ok(Val::Str(r.as_string().unwrap().into()))
+        } else {
+            Err(ErrorKind::RuntimeError("Error calling JS function".into()).into())
+        }
+    }
 }
 
 // Function to register the native callback
-// pub extern "C" fn register_native_callback(vm: *mut VM, name: &str, ctx: &NativeContext) {
-//     let vm = unsafe { &*vm };
-//     let any_resolver = vm.state.context_initializer();
-//     any_resolver
-//         .as_any()
-//         .downcast_ref::<jrsonnet_stdlib::ContextInitializer>()
-//         .expect("only stdlib context initializer supported")
-//         .add_native(
-//             name,
-//             NativeCallback::new(vec!["a".to_string(), "b".to_string()], NativeAddCallback),
-//         );
-// }
+#[wasm_bindgen]
+pub extern "C" fn register_native_callback(vm: *mut VM, name: String, args_num: u32) {
+    let vm = unsafe { &*vm };
+    let any_resolver = vm.state.context_initializer();
+    let args_vec = vec![String::from("x"); args_num as usize];
+    any_resolver
+        .as_any()
+        .downcast_ref::<context::ArakooContextInitializer>()
+        .expect("only arakoo context initializer supported")
+        .add_native(
+            name.clone(),
+            NativeCallback::new(args_vec, NativeJSCallback(name)),
+        );
+}
 
 #[cfg(test)]
 mod test {

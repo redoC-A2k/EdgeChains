@@ -10,6 +10,9 @@ if (!isArakoo) {
         jsonnet_make,
         ext_string,
         jsonnet_evaluate_file,
+        get_func,
+        set_func,
+        register_native_callback,
     } = await module;
     Jsonnet = class Jsonnet {
         constructor() {
@@ -29,19 +32,22 @@ if (!isArakoo) {
             return jsonnet_evaluate_file(this.vm, filename);
         }
 
-
-        javascriptNative(functionName, context, args) {
-            // var args = Array.prototype.slice.call(arguments, 2);
-            // var namespaces = functionName.split(".");
-            // var func = namespaces.pop();
-            // for (var i = 0; i < namespaces.length; i++) {
-            //     context = context[namespaces[i]];
-            // }
-            // console.log(context)
-            // return context[func].apply(context, args);
-            // args = args.toString();
-            // return eval(functionName);
-            return context[functionName](...args);
+        javascriptCallback(name, func) {
+            let numOfArgs = func.length;
+            if (numOfArgs > 0) {
+                set_func(name, (args)=>{
+                    let result = eval(func)(...JSON.parse(args));
+                    return result.toString();
+                });
+            }
+            else {
+                set_func(name, ()=>{
+                    let result = eval(func)();
+                    return result;
+                });
+            }
+            register_native_callback(this.vm, name, numOfArgs);
+            return this;
         }
 
         destroy() {

@@ -28,22 +28,18 @@ export function jsonnet_evaluate_file(vm: number, filename: string): string;
 */
 export function ext_string(vm: number, key: string, value: string): void;
 /**
-* @param {Function} callback
+* @param {string} name
+* @returns {Function | undefined}
 */
-export function execute_callback(callback: Function): void;
+export function get_func(name: string): Function | undefined;
 /**
+* @param {string} name
+* @param {Function} func
 */
-export class CallBackClass {
-  free(): void;
+export function set_func(name: string, func: Function): void;
 /**
+* @param {number} vm
+* @param {string} name
+* @param {number} args_num
 */
-  constructor();
-/**
-* @param {Function} f
-* @returns {any}
-*/
-  call_native_js_func(f: Function): any;
-/**
-*/
-  arg: string;
-}
+export function register_native_callback(vm: number, name: string, args_num: number): void;

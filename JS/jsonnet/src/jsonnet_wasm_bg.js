@@ -277,92 +277,36 @@ export function ext_string(vm, key, value) {
     wasm.ext_string(vm, ptr0, len0, ptr1, len1);
 }
 
-let stack_pointer = 128;
-
-function addBorrowedObject(obj) {
-    if (stack_pointer == 1) throw new Error('out of js stack');
-    heap[--stack_pointer] = obj;
-    return stack_pointer;
-}
 /**
-* @param {Function} callback
+* @param {string} name
+* @returns {Function | undefined}
 */
-export function execute_callback(callback) {
-    wasm.execute_callback(addHeapObject(callback));
+export function get_func(name) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_func(ptr0, len0);
+    return takeObject(ret);
 }
 
-const CallBackClassFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_callbackclass_free(ptr >>> 0));
 /**
+* @param {string} name
+* @param {Function} func
 */
-export class CallBackClass {
+export function set_func(name, func) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.set_func(ptr0, len0, addHeapObject(func));
+}
 
-    __destroy_into_raw() {
-        const ptr = this.__wbg_ptr;
-        this.__wbg_ptr = 0;
-        CallBackClassFinalization.unregister(this);
-        return ptr;
-    }
-
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_callbackclass_free(ptr);
-    }
-    /**
-    */
-    constructor() {
-        const ret = wasm.callbackclass_new();
-        this.__wbg_ptr = ret >>> 0;
-        return this;
-    }
-    /**
-    * @param {Function} f
-    * @returns {any}
-    */
-    call_native_js_func(f) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.callbackclass_call_native_js_func(retptr, this.__wbg_ptr, addBorrowedObject(f));
-            var r0 = getInt32Memory0()[retptr / 4 + 0];
-            var r1 = getInt32Memory0()[retptr / 4 + 1];
-            var r2 = getInt32Memory0()[retptr / 4 + 2];
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-    * @returns {string}
-    */
-    get arg() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.callbackclass_arg(retptr, this.__wbg_ptr);
-            var r0 = getInt32Memory0()[retptr / 4 + 0];
-            var r1 = getInt32Memory0()[retptr / 4 + 1];
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-    * @param {string} arg
-    */
-    set arg(arg) {
-        const ptr0 = passStringToWasm0(arg, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.callbackclass_set_arg(this.__wbg_ptr, ptr0, len0);
-    }
+/**
+* @param {number} vm
+* @param {string} name
+* @param {number} args_num
+*/
+export function register_native_callback(vm, name, args_num) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.register_native_callback(vm, ptr0, len0, args_num);
 }
 
 export function __wbindgen_string_get(arg0, arg1) {
@@ -378,6 +322,11 @@ export function __wbindgen_object_drop_ref(arg0) {
     takeObject(arg0);
 };
 
+export function __wbindgen_string_new(arg0, arg1) {
+    const ret = getStringFromWasm0(arg0, arg1);
+    return addHeapObject(ret);
+};
+
 export function __wbg_readfile_3df9f1d22ad880df() { return handleError(function (arg0, arg1, arg2) {
     const ret = read_file(getStringFromWasm0(arg1, arg2));
     const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -386,8 +335,8 @@ export function __wbg_readfile_3df9f1d22ad880df() { return handleError(function 
     getInt32Memory0()[arg0 / 4 + 0] = ptr1;
 }, arguments) };
 
-export function __wbindgen_string_new(arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
+export function __wbindgen_object_clone_ref(arg0) {
+    const ret = getObject(arg0);
     return addHeapObject(ret);
 };
 
