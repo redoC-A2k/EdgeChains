@@ -182,7 +182,7 @@ describe("Testing javascript native function of jsonnet library", () => {
 			return a + b + c;
 		}
 		let result = JSON.parse(jsonnet.javascriptCallback("add", add).evaluateSnippet(`{
-			"result": "Output "+std.native("add")(1,2,3),
+			"result": "Output "+arakoo.native("add")(1,2,3),
 			"name":"Alice"
 		}`))
 		expect(result).to.eql({
@@ -200,7 +200,7 @@ describe("Testing javascript native function of jsonnet library", () => {
 			return sum;
 		}
 		let result = JSON.parse(jsonnet.javascriptCallback("arrsum", calcSum).evaluateSnippet(`{
-			"result": "Output "+std.native("arrsum")(${JSON.stringify(numArr)}),
+			"result": "Output "+arakoo.native("arrsum")(${JSON.stringify(numArr)}),
 			"name":"Alice"
 		}`))
 		expect(result).to.eql({
@@ -213,7 +213,7 @@ describe("Testing javascript native function of jsonnet library", () => {
 			return a + b;
 		}
 		let result = JSON.parse(jsonnet.javascriptCallback("concat", concat).evaluateSnippet(`{
-			"result": "Output "+std.native("concat")("Hello ","World"),
+			"result": "Output "+arakoo.native("concat")("Hello ","World"),
 			"name":"Alice"
 		}`))
 		expect(result).to.eql({
