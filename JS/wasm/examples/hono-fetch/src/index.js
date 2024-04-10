@@ -4,7 +4,6 @@ import { readFileSync, writeFileSync, STDIO } from "javy/fs"
 const app = new Hono();
 
 function writeOutput(output) {
-    // const encodedOutput = new TextEncoder().encode(JSON.stringify(output));
     const encodedOutput = new TextEncoder().encode(output);
     const buffer = new Uint8Array(encodedOutput);
     // Stdout file descriptor
@@ -25,10 +24,9 @@ app.get('/post', async (c) => {
                 userId: 1,
             }),
             headers: {
-                'Content-type': 'application/json; charset=UTF-8',
+                'Content-type': 'application/json',
             },
         })
-        console.log(response);
         let body = JSON.parse(response.body);
         response.body = body;
         return c.json(response);
@@ -44,7 +42,6 @@ app.get('/post', async (c) => {
 app.get('/get', async (c) => {
     try {
         let response = await fetch('https://jsonplaceholder.typicode.com/todos/1', { method: "GET" });
-        console.log(response);
         let body = JSON.parse(response.body);
         response.body = body;
         return c.json(response);
@@ -56,16 +53,5 @@ app.get('/get', async (c) => {
         return c.json(output);
     }
 })
-
-// app.get('/axiostest', async (c)=>{
-//     try {
-//         let response = await axos.get('https://jsonplaceholder.typicode.com/todos/1');
-//         console.log(response)
-//         console.log(response.data)
-//     } catch (error) {
-//         console.log("error occured")
-//         console.log(error)        
-//     }
-// })
 
 app.fire()
