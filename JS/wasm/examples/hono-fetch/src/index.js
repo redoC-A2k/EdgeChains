@@ -54,4 +54,15 @@ app.get('/get', async (c) => {
     }
 })
 
+app.get('/axiosget', async (c) => {
+    try {
+        let repsonse = await axios.get('https://jsonplaceholder.typicode.com/todos/1');
+        return c.json(repsonse);
+    } catch (error) {
+        console.log("error occured")
+        writeOutput(error)
+        return c.json(error);
+    }
+})
+
 app.fire()

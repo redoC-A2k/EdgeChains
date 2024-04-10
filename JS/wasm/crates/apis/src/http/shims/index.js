@@ -298,6 +298,35 @@ const requestToHandler = (input) => {
     }
 };
 
+globalThis.axios = {
+    get: async (url) => {
+        try {
+            let response = await fetch(url, {
+                method: "GET",
+            });
+            try {
+                let body = JSON.parse(response.body);
+                response.body = body;
+                return response;
+            } catch (error) {
+                return response;
+            }
+        } catch (error) {
+            console.log("error occured");
+            return error;
+        }
+    },
+    post: async (url, data) => {
+        return fetch(url, {
+            method: "POST",
+            body: JSON.stringify(data),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+    },
+};
+
 globalThis.entrypoint = requestToHandler;
 globalThis.result = {};
 globalThis.error = null;
