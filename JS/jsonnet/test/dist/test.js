@@ -143,24 +143,6 @@ describe("Testing join function of jsonnet library", () => {
         expect(result).to.eql(expected);
     });
 });
-// describe("Call native function ", () => {
-//   it("Call native add function", function () {
-//     function add(a, b) {
-//       console.log("a = ", a, " and b = ", b)
-//       return a + b
-//     }
-//     // native: {
-//     function hello() {
-//       console.log("hello")
-//     }
-//     // }
-//     // let result = jsonnet.javascriptNative("add", [1, 2]);
-//     let result = jsonnet.javascriptNative("hello", this);
-//     // let result = eval("add(1,2)")
-//     let expected = 3
-//     expect(result).to.equal(expected)
-//   })
-// })
 describe("Testing javascript native function of jsonnet library", () => {
     it("Test javascript native function using arithematic operations : add", () => {
         function add(a, b, c) {

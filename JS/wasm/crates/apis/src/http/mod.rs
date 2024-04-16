@@ -12,11 +12,10 @@ pub(super) struct Http;
 impl JSApiSet for Http {
     fn register(&self, runtime: &javy::Runtime, _config: &crate::APIConfig) -> Result<()> {
         let context = runtime.context();
+        context.eval_global("http.js", include_str!("shims/dist/index.js"))?;
         let global = context.global_object()?;
         global.set_property("arakoo", context.value_from_bool(true)?)?;
-        global.set_property("fetch", context.wrap_callback(fetch_callback())?)?;
-        context.eval_global("http.js", include_str!("shims/dist/index.js"))?;
-
+        global.set_property("fetch_internal", context.wrap_callback(fetch_callback())?)?;
         Ok(())
     }
 }
