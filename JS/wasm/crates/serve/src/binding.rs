@@ -1,16 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use jrsonnet_evaluator::{
-    apply_tla,
-    function::TlaArg,
-    gc::GcHashMap,
-    manifest::{JsonFormat, ManifestFormat},
-    tb,
-    trace::{CompactFormat, PathResolver, TraceFormat},
-    FileImportResolver, State, Val,
-};
-use jrsonnet_parser::IStr;
-use jrsonnet_stdlib::ContextInitializer;
+use arakoo_jsonnet::{ext_string, jsonnet_destroy, jsonnet_evaluate_snippet, jsonnet_make};
 
 use tokio::runtime::Builder;
 use tracing::error;
@@ -19,12 +9,13 @@ use wasmtime::*;
 
 use crate::io::{WasmInput, WasmOutput};
 
-pub struct VM {
-    state: State,
-    manifest_format: Box<dyn ManifestFormat>,
-    trace_format: Box<dyn TraceFormat>,
-    tla_args: GcHashMap<IStr, TlaArg>,
-}
+// pub struct VM {
+//     state: State,
+//     manifest_format: Box<dyn ManifestFormat>,
+//     trace_format: Box<dyn TraceFormat>,
+//     tla_args: GcHashMap<IStr, TlaArg>,
+// }
+
 /// Adds exported functions to the Wasm linker.
 ///
 /// This function wraps the `jsonnet_evaluate`, `jsonnet_output_len`, and `jsonnet_output`
@@ -85,47 +76,19 @@ pub fn add_jsonnet_to_linker(linker: &mut Linker<WasiCtx>) -> anyhow::Result<()>
             };
 
             // Initialize the Jsonnet VM state with default settings.
-            let state = State::default();
-            state.settings_mut().import_resolver = tb!(FileImportResolver::default());
-            state.settings_mut().context_initializer = tb!(ContextInitializer::new(
-                state.clone(),
-                PathResolver::new_cwd_fallback(),
-            ));
-            // Create the Jsonnet VM with the default settings.
-            let vm = VM {
-                state,
-                manifest_format: Box::new(JsonFormat::default()),
-                trace_format: Box::new(CompactFormat::default()),
-                tla_args: GcHashMap::default(),
-            };
+            let vm = jsonnet_make();
 
             // Evaluate the Jsonnet code snippet using the provided path and variables.
             let code = path;
-            let any_initializer = vm.state.context_initializer();
-            let context = any_initializer
-                .as_any()
-                .downcast_ref::<ContextInitializer>()
-                .unwrap();
             for (key, value) in var_json.as_object().unwrap() {
-                context.add_ext_var(key.into(), Val::Str(value.as_str().unwrap().into()));
+                // context.add_ext_var(key.into(), Val::Str(value.as_str().unwrap().into()));
+                ext_string(vm, key, value.as_str().expect("ext_string value is not a string"));
             }
-            let out = match vm
-                .state
-                .evaluate_snippet("snippet", code)
-                .and_then(|val| apply_tla(vm.state.clone(), &vm.tla_args, val))
-                .and_then(|val| val.manifest(&vm.manifest_format))
-            {
-                Ok(v) => v,
-                Err(e) => {
-                    error!("Error evaluating snippet: {}", e);
-                    let mut out = String::new();
-                    vm.trace_format.write_trace(&mut out, &e).unwrap();
-                    out
-                }
-            };
+            let out = jsonnet_evaluate_snippet(vm, "deleteme", code);
             // Store the output of the Jsonnet evaluation in the shared output buffer.
             let mut output = output.lock().unwrap();
             *output = out;
+            jsonnet_destroy(vm);
             Ok(())
         },
     )?;
