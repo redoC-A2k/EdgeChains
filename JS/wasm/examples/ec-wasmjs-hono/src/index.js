@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { connect } from "@planetscale/database";
-
 import Jsonnet from "@arakoodev/jsonnet";
 
 let jsonnet = new Jsonnet();
@@ -8,8 +7,7 @@ let jsonnet = new Jsonnet();
 const app = new Hono();
 const env = {};
 app.get("/", (c) => {
-    const code = `
-  local username = std.extVar('name');
+    const code = `local username = std.extVar('name');
   local Person(name='Alice') = {
     name: name,
     welcome: 'Hello ' + name + '!',
@@ -21,6 +19,18 @@ app.get("/", (c) => {
     let result = jsonnet.extString("name", "ll").evaluateSnippet(code);
     return c.json(JSON.parse(result));
 });
+
+app.get('/file', (c) => {
+    try {
+        let result = jsonnet.extString("extName", "prince").evaluateFile("./src/example.jsonnet");
+        console.log(result)
+        return c.json(JSON.parse(result));
+    } catch (error) {
+        console.log("Error occured : ")
+        console.log(error)
+        return c.text("Unable to evaluate File")
+    }
+})
 
 app.get("/:username", (c) => {
     const { username } = c.req.param();

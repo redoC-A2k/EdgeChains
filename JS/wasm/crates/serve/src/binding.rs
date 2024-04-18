@@ -74,17 +74,20 @@ pub fn add_jsonnet_to_linker(linker: &mut Linker<WasiCtx>) -> anyhow::Result<()>
                     return Err(Trap::BadSignature.into());
                 }
             };
+            // println!("var_json : {}",var_json);
 
             // Initialize the Jsonnet VM state with default settings.
             let vm = jsonnet_make();
 
             // Evaluate the Jsonnet code snippet using the provided path and variables.
             let code = path;
+            // println!("code : {}",path);
             for (key, value) in var_json.as_object().unwrap() {
                 // context.add_ext_var(key.into(), Val::Str(value.as_str().unwrap().into()));
                 ext_string(vm, key, value.as_str().expect("ext_string value is not a string"));
             }
             let out = jsonnet_evaluate_snippet(vm, "deleteme", code);
+            // println!("Out : {}",out);
             // Store the output of the Jsonnet evaluation in the shared output buffer.
             let mut output = output.lock().unwrap();
             *output = out;

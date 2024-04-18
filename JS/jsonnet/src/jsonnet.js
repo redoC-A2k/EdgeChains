@@ -1,5 +1,4 @@
 const isArakoo = process.env.arakoo;
-
 let Jsonnet;
 
 if (!isArakoo) {
@@ -68,7 +67,10 @@ if (!isArakoo) {
             let vars = JSON.stringify(this.vars);
             return __jsonnet_evaluate_snippet(vars, snippet);
         }
-
+        evaluateFile(snippet){
+            let vars = JSON.stringify(this.vars);
+            return __jsonnet_evaluate_snippet(vars, snippet);
+        }
         destroy() { }
     };
 }

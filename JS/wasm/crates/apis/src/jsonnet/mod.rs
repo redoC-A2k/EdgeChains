@@ -30,7 +30,7 @@ fn jsonnet_evaluate_snippet_callback(
         let path_len = code.len() as i32;
         let var_ptr = var.as_ptr();
         let path_ptr = code.as_ptr();
-
+        // println!("code = {}", code);
         unsafe { jsonnet_evaluate(var_ptr, var_len, path_ptr, path_len) }
         let out_len = unsafe { jsonnet_output_len() };
 
