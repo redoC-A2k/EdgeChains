@@ -155,46 +155,18 @@ pub fn add_jsonnet_to_linker(linker: &mut Linker<WasiCtx>) -> anyhow::Result<()>
 
             let vm = jsonnet_make();
 
-            let entries =
-                fs::read_dir(env::current_dir().expect("Unable to get current directory"))
-                    .expect("unable to read path");
-            let mut file: Option<String> = None;
-            for entry in entries {
-                let filepath = entry.expect("Panic in entry").path();
-                if (filepath.is_file()) {
-                    let filename = filepath
-                        .file_name()
-                        .expect("Panic in filename")
-                        .to_str()
-                        .expect("Panic in to_str")
-                        .to_owned();
-                    if (filename.starts_with(path.split('.').collect::<Vec<&str>>()[0])
-                        && filename.ends_with(".jsonnet"))
-                    {
-                        file = Some(filename);
-                        break;
-                    }
-                }
+            for (key, value) in var_json.as_object().unwrap() {
+                ext_string(
+                    vm,
+                    key,
+                    value.as_str().expect("ext_string value is not a string"),
+                );
             }
-            match file {
-                Some(filename) => {
-                    for (key, value) in var_json.as_object().unwrap() {
-                        ext_string(
-                            vm,
-                            key,
-                            value.as_str().expect("ext_string value is not a string"),
-                        );
-                    }
-                    let code = fs::read_to_string(filename)?;
-                    let out = jsonnet_evaluate_snippet(vm, "deleteme", &code);
-                    let mut output: std::sync::MutexGuard<'_, String> = output.lock().unwrap();
-                    *output = out;
-                }
-                None => {
-                    let mut output = output.lock().unwrap();
-                    *output = r#""Empty file""#.to_string();
-                }
-            }
+            let code = fs::read_to_string(path).expect("File not found");
+            let out = jsonnet_evaluate_snippet(vm, "deleteme", &code);
+            let mut output: std::sync::MutexGuard<'_, String> = output.lock().unwrap();
+            *output = out;
+
             Ok(())
         },
     )?;

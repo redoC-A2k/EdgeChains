@@ -16,23 +16,23 @@ let runtime = process.argv[2];
 // }
 
 build({
-    // entryPoints: ["src/index.js", "src/example.jsonnet"],
-    entryPoints: ["src/index.js"],
+    entryPoints: ["src/index.js", "src/example.jsonnet"],
+    // entryPoints: ["src/index.js"],
     bundle: true,
     // minify: true,
     minifySyntax: true,
-    outfile: "bin/app.js",
-    // outdir: "bin",
+    // outfile: "bin/app.js",
+    outdir: "bin",
     format: "esm",
     target: "esnext",
     platform: "node",
     // external: ["arakoo"],
+    loader:{
+        ".jsonnet":"copy"
+    },
     define: {
         "process.env.arakoo": JSON.stringify(runtime === "arakoo"),
     },
-    // loader: {
-    //     ".jsonnet": "text",
-    // },
 }).catch((error) => {
     console.error(error);
     process.exit(1);

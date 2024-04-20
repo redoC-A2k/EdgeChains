@@ -23,8 +23,15 @@ app.get("/", (c) => {
 });
 
 app.get('/file', (c)=>{
-    let result = jsonnet.extString("extName","Mohan").evaluateFile("example.jsonnet");
-    return c.json(JSON.parse(result));
+    try {
+        let result = jsonnet.extString("extName","Mohan").evaluateFile("example.jsonnet");
+        return c.json(JSON.parse(result));
+    } catch (error) {
+        console.log("Error occured");
+        console.log(error);
+        return c.json("Unable to evaluate File")
+    }
+
 })
 
 app.get("/:username", (c) => {
