@@ -162,7 +162,7 @@ pub fn add_jsonnet_to_linker(linker: &mut Linker<WasiCtx>) -> anyhow::Result<()>
                     value.as_str().expect("ext_string value is not a string"),
                 );
             }
-            let code = fs::read_to_string(path).expect("File not found");
+            let code = fs::read_to_string(path).expect(&format!("File not found {}",path));
             let out = jsonnet_evaluate_snippet(vm, "deleteme", &code);
             let mut output: std::sync::MutexGuard<'_, String> = output.lock().unwrap();
             *output = out;
