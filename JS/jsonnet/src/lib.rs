@@ -1,5 +1,17 @@
-use std::{cell::RefCell, collections::HashMap, path::Path};
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    collections::HashMap,
+    future::IntoFuture,
+    path::Path,
+    process::Output,
+    rc::Rc,
+    sync::{mpsc, Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
+use futures::{Future, FutureExt};
 use jrsonnet_evaluator::{
     apply_tla,
     error::ErrorKind,
@@ -15,10 +27,14 @@ use jrsonnet_evaluator::{
 };
 use jrsonnet_gcmodule::Trace;
 use jrsonnet_parser::IStr;
+use js_sys::Promise;
 use std::alloc;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
 
 mod context;
+extern crate console_error_panic_hook;
+use std::panic;
 
 #[wasm_bindgen(module = "/read-file.js")]
 extern "C" {
@@ -58,6 +74,7 @@ pub fn jsonnet_make() -> *mut VM {
             func_map: HashMap::new(),
         });
     }
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     let state = State::default();
     state.settings_mut().import_resolver = tb!(FileImportResolver::default());
     state.set_context_initializer(context::ArakooContextInitializer::new(
@@ -102,6 +119,7 @@ pub fn jsonnet_evaluate_snippet(vm: *mut VM, filename: &str, snippet: &str) -> S
 #[wasm_bindgen]
 pub fn jsonnet_evaluate_file(vm: *mut VM, filename: &str) -> String {
     let vm = unsafe { &mut *vm };
+    log(&format!("Reading file {}", filename));
     match read_file(filename) {
         Ok(content) => match vm
             .state
@@ -117,6 +135,7 @@ pub fn jsonnet_evaluate_file(vm: *mut VM, filename: &str) -> String {
             }
         },
         Err(e) => {
+            log(&format!("Error {:?}", e));
             eprintln!("Error reading file: {}", e.as_string().unwrap());
             let out = String::from(e.as_string().unwrap());
             out
@@ -197,6 +216,14 @@ pub fn set_func(name: String, func: js_sys::Function) {
 #[derive(jrsonnet_gcmodule::Trace)]
 struct NativeJSCallback(String);
 
+#[derive(Clone)]
+struct JsValueWrap(JsValue);
+#[derive(Clone)]
+struct PromiseWrap(js_sys::Promise);
+
+unsafe impl Send for JsValueWrap {}
+unsafe impl Send for PromiseWrap {}
+
 impl NativeCallbackHandler for NativeJSCallback {
     fn call(&self, args: &[Val]) -> jrsonnet_evaluator::Result<Val> {
         let this = JsValue::null();
@@ -212,10 +239,87 @@ impl NativeCallbackHandler for NativeJSCallback {
         } else {
             result = func.call0(&this);
         }
-        println!("Result of calling JS function: {:?}", result);
         if let Ok(r) = result {
-            Ok(Val::Str(r.as_string().unwrap().into()))
+            if r.clone().is_instance_of::<js_sys::Promise>() {
+                let result: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+                let promise = r.dyn_into::<Promise>().expect("JsValue is not promise");
+                let result_clone = result.clone();
+                let _ = promise.then2(
+                    &Closure::once(move |val: JsValue| {
+                        log(&format!("Got value {:?}", val));
+                        let mut x = result_clone.borrow_mut();
+                        *x = Some(val.as_string().expect("Value can't be converted to String"));
+                    }),
+                    &Closure::once(move |error| {
+                        log(&format!("Got error {:?}", error));
+                    }),
+                );
+                let x = result.borrow_mut();
+                //Fix : Thread gets blocked here 
+                while(*x).is_none() {
+                    // thread::sleep(Duration::from_millis(100));
+                    // log("Waiting for value");
+                    continue;
+                }
+                let output = x.clone().unwrap();
+                // // wasm_bindgen_futures::JsFuture::from(promise)
+                // // .into_future()
+                // // .then( |val| {
+                // //     log(&format!("Result of calling JS function: {:?}", val));
+                // //     Ok(Val::Str("good".into()))
+                // // });
+                // // let (sender, recx) = mpsc::channel::<JsValueWrap>();
+                // let data: Arc<Mutex<Option<JsValueWrap>>> = Arc::new(Mutex::new(None));
+                // let data_clone = data.clone();
+                // // let flag = Arc::new(Mutex::new(false));
+                // // let promise_rc = Arc::new(PromiseWrap(promise));
+                // // let promise_rc_clone = promise_rc.clone();
+                // let r = JsValueWrap(r);
+                // let r = Arc::new(Mutex::new(r));
+                // let r = r.clone();
+                // // tokio::runtime::Builder::new_current_thread()
+                // //     .enable_all()
+                // //     .build()
+                // //     .unwrap()
+                // //     .spawn_blocking(move || {
+                // let r = r.lock().unwrap();
+                // let r = &r.borrow().0;
+                // let r = r.clone();
+                // let promise = r
+                //     .dyn_into::<Promise>()
+                //     .expect("Unable to typecast to promise");
+                // // let val:&dyn Future<Output = Result<JsValue,JsValue>> = JsFuture::from(promise).borrow();
+                // // wasm_bindgen_futures::spawn_local(async move {
+                // //     let val = JsFuture::from(promise).await.unwrap();
+                // //     log(&format!("Result of calling JS function: {:?}", val));
+                // //     let mut data = data_clone.lock().unwrap();
+                // //     *data = Some(JsValueWrap(val));
+                // //     // sender.send(val).expect("unable to send value over mpsc");
+                // // });
+                // // tokio::task::spawn_blocking(move || {
+                // let data = data.lock().unwrap();
+                // // while data.is_none() {
+                // //     thread::sleep(Duration::from_millis(100));
+                // //     log("Waiting for value");
+                // //     continue;
+                // // }
+                // let val = data.clone().unwrap();
+                // log("Recieveing value");
+                // // });
+                // // });
+
+                // // let recx = receiver.
+                // // let received = recx.recv().expect("Unable to recieve value over mpsc");
+                // // log(&format!("Recieved {:?}", received));
+                // // Ok(Val::Str(received.as_string().expect("Value can't be converted to String").into()))
+
+                Ok(Val::Str(output.into()))
+            } else {
+                // If it's not a promise, return directly
+                Ok(Val::Str(r.as_string().unwrap().into()))
+            }
         } else {
+            // If there's an error, return an error
             Err(ErrorKind::RuntimeError("Error calling JS function".into()).into())
         }
     }
