@@ -6,7 +6,6 @@ use anyhow::Result;
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
 
 use crate::{fetch, get_response, get_response_len, http::types::Request, JSApiSet};
-
 pub(super) struct Http;
 
 impl JSApiSet for Http {
@@ -16,6 +15,14 @@ impl JSApiSet for Http {
         let global = context.global_object()?;
         global.set_property("arakoo", context.value_from_bool(true)?)?;
         global.set_property("fetch_internal", context.wrap_callback(fetch_callback())?)?;
+        // global.set_property(
+        //     "__internal_http_send",
+        //     context.wrap_callback(
+        //         |context: &JSContextRef, _this: JSValueRef<'_>, args: &[JSValueRef<'_>]| {
+        //             send_http_request(context, &_this, args)
+        //         },
+        //     )?,
+        // )?;
         Ok(())
     }
 }
@@ -96,3 +103,93 @@ fn fetch_callback(
         Ok(response_obj)
     }
 }
+
+// fn send_http_request(context: &Context, _this: &Value, args: &[Value]) -> Result<Value> {
+//     match args {
+//         [request] => {
+//             let deserializer = &mut Deserializer::from(request.clone());
+//             let request = HttpRequest::deserialize(deserializer)?;
+
+//             let mut builder = request::Builder::new()
+//                 .method(request.method.deref())
+//                 .uri(request.uri.deref());
+
+//             if let Some(headers) = builder.headers_mut() {
+//                 for (key, value) in &request.headers {
+//                     headers.insert(
+//                         HeaderName::from_bytes(key.as_bytes())?,
+//                         HeaderValue::from_bytes(value.as_bytes())?,
+//                     );
+//                 }
+//             }
+
+//             let response = arakoo_send_request(
+//                 builder.body(request.body.map(|buffer| buffer.into_vec().into()))?,
+//             )?;
+
+//             let response = HttpResponse {
+//                 status: response.status().as_u16(),
+//                 headers: response
+//                     .headers()
+//                     .iter()
+//                     .map(|(key, value)| {
+//                         Ok((
+//                             key.as_str().to_owned(),
+//                             str::from_utf8(value.as_bytes())?.to_owned(),
+//                         ))
+//                     })
+//                     .collect::<Result<_>>()?,
+//                 body: response
+//                     .into_body()
+//                     .map(|bytes| ByteBuf::from(bytes.deref())),
+//             };
+
+//             let mut serializer = Serializer::from_context(context)?;
+//             response.serialize(&mut serializer)?;
+//             Ok(serializer.value)
+//         }
+
+//         _ => Err(anyhow!("expected 1 argument, got {}", args.len())),
+//     }
+// }
+
+// pub fn arakoo_send_request(req: HttpRequest) -> Result<HttpResponse> {
+//     let (req, body) = req.into_parts();
+
+//     let method = req.method.try_into()?;
+
+//     let uri = req.uri.to_string();
+
+//     let params = vec![];
+
+//     let headers = &req
+//         .headers
+//         .iter()
+//         .map(try_header_to_strs)
+//         .collect::<Result<Vec<_>>>()?;
+
+//     let body = body.as_ref().map(|bytes| bytes.as_ref());
+
+//     let out_req = OutboundRequest {
+//         method,
+//         uri: &uri,
+//         params: &params,
+//         headers,
+//         body,
+//     };
+
+//     let OutboundResponse {
+//         status,
+//         headers,
+//         body,
+//     } = spin_http::send_request(out_req)?;
+
+//     let resp_builder = http_types::response::Builder::new().status(status);
+//     let resp_builder = headers
+//         .into_iter()
+//         .flatten()
+//         .fold(resp_builder, |b, (k, v)| b.header(k, v));
+//     resp_builder
+//         .body(body.map(Into::into))
+//         .map_err(|_| OutboundHttpError::RuntimeError)
+// }

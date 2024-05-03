@@ -19,3 +19,4 @@ javy = { workspace = true }
 tokio = "1.36.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
+quickjs-wasm-rs = "3.0.0"
