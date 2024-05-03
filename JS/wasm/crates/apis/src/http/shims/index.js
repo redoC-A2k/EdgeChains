@@ -1,7 +1,12 @@
-import { TextEncoder, TextDecoder } from "@sinonjs/text-encoding";
 import httpStatus from "http-status";
 import Url from "url-parse";
 import _queryString from "query-string";
+import "fast-text-encoding"
+
+
+let encoder = new TextEncoder()
+let decoder = new TextDecoder()
+
 
 class URL {
     constructor(urlStr, base = undefined) {
@@ -302,7 +307,51 @@ globalThis.entrypoint = requestToHandler;
 globalThis.result = {};
 globalThis.error = null;
 
-globalThis.fetch = async (resource, options = { method: "GET" }) => {
-    let response = await fetch_internal(resource, options);
-    return Promise.resolve(new Response(response.body, response));
-};
+// globalThis.fetch = async (resource, options = { method: "GET" }) => {
+//     let response = await fetch_internal(resource, options);
+//     return Promise.resolve(new Response(response.body, response));
+// };
+
+function encodeBody(body) {
+    if (typeof (body) == "string") {
+        return encoder.encode(body).buffer
+    } else if (ArrayBuffer.isView(body)) {
+        return body.buffer
+    } else {
+        return body
+    }
+}
+
+
+globalThis.fetch = async (uri, options) => {
+    let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
+    let fetchOptions = {
+        method: (options && options.method) || "GET",
+        uri: (uri instanceof URL) ? uri.toString() : uri,
+        headers: (options && options.headers) || {},
+        body: encodedBodyData,
+    };
+    console.log(JSON.stringify(fetchOptions))
+    const { status, headers, body } = __internal_http_send({
+        method: (options && options.method) || "GET",
+        uri: (uri instanceof URL) ? uri.toString() : uri,
+        headers: (options && options.headers) || {},
+        body: encodedBodyData,
+    })
+    return Promise.resolve({
+        status,
+        headers: {
+            entries: () => Object.entries(headers || {}),
+            get: (key) => (headers && headers[key]) || null,
+            has: (key) => (headers && headers[key]) ? true : false
+        },
+        arrayBuffer: () => Promise.resolve(body),
+        ok: (status > 199 && status < 300),
+        statusText: statusTextList[status],
+        text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
+        json: () => {
+            let text = new TextDecoder().decode(body || new Uint8Array())
+            return Promise.resolve(JSON.parse(text))
+        }
+    })
+}

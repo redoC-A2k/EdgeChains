@@ -1,13 +1,9 @@
 [package]
-name = "arakoo-core"
+name = "arakoo-js-engine"
 edition.workspace = true
 version.workspace = true
 
-[[bin]]
-name = "arakoo-core"
-path = "src/main.rs"
 [lib]
-name = "javy_quickjs_provider"
 crate-type = ["cdylib"]
 
 [dependencies]
@@ -21,5 +17,4 @@ apis = { path = "../apis", features = [
     "stream_io",
 ] }
 serde_json = { workspace = true }
-[features]
-experimental_event_loop = []
+wit-bindgen = "0.24.0"
