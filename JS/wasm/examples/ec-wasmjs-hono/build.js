@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import textReplace from "esbuild-plugin-text-replace";
 import fs from "fs";
 let runtime = process.argv[2];
 
@@ -20,9 +21,21 @@ build({
     // entryPoints: ["src/index.js"],
     bundle: true,
     // minify: true,
-    minifySyntax: true,
+    // minifySyntax: true,
     // outfile: "bin/app.js",
     outdir: "bin",
+    // inject:["shim.js"],
+    // define:{
+    //     "export":"_export"
+    // },
+    plugins:[
+        textReplace({
+            include:/src\/index.js$/,
+            pattern:[
+                ["export default","_export = "]
+            ]
+        })
+    ],
     format: "esm",
     target: "esnext",
     platform: "node",
