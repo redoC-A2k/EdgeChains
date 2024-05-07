@@ -167,10 +167,13 @@ class Headers {
 
 class Request {
     constructor(input) {
-        this.url = input.url;
+        // console.log("In constructor of request input body len",input.body.byteLength);
+        this.url = input.uri;
         this.method = input.method;
         this.headers = new Headers(input.headers || {});
-        this.body = input.body;
+        let bodyArray = new Uint8Array(input.body);
+        let bodyString = decoder.decode(bodyArray);
+        this.body = JSON.parse(bodyString);
         this.params = input.params || {};
         this.geo = input.geo || {};
     }
@@ -267,45 +270,45 @@ class Response {
         return this.body;
     }
 }
-let handlerFunction;
-globalThis.addEventListener = (_eventName, handler) => {
-    handlerFunction = handler;
-};
+// let handlerFunction;
+// globalThis.addEventListener = (_eventName, handler) => {
+//     handlerFunction = handler;
+// };
 
-const requestToHandler = (input) => {
-    const request = new Request(input);
-    const event = {
-        request,
-        response: {},
-        respondWith(res) {
-            this.response = res;
-        },
-    };
+// const requestToHandler = (input) => {
+//     const request = new Request(input);
+//     const event = {
+//         request,
+//         response: {},
+//         respondWith(res) {
+//             this.response = res;
+//         },
+//     };
 
-    try {
-        handlerFunction(event);
+//     try {
+//         handlerFunction(event);
 
-        Promise.resolve(event.response)
-            .then((res) => {
-                console.log("res: ", res);
-                result = {
-                    body: res.body,
-                    headers: res.headers.headers,
-                    status: res.status,
-                    statusText: res.statusText,
-                };
-            })
-            .catch((err) => {
-                error = `err: \n${err}`;
-            });
-    } catch (err) {
-        error = `err: ${err}\n${err.stack}`;
-    }
-};
+//         Promise.resolve(event.response)
+//             .then((res) => {
+//                 console.log("res: ", res);
+//                 result = {
+//                     body: res.body,
+//                     headers: res.headers.headers,
+//                     status: res.status,
+//                     statusText: res.statusText,
+//                 };
+//             })
+//             .catch((err) => {
+//                 error = `err: \n${err}`;
+//             });
+//     } catch (err) {
+//         error = `err: ${err}\n${err.stack}`;
+//     }
+// };
 
-globalThis.entrypoint = requestToHandler;
-globalThis.result = {};
-globalThis.error = null;
+// globalThis.entrypoint = requestToHandler;
+// globalThis.result = {};
+// globalThis.error = null;
 
 // globalThis.fetch = async (resource, options = { method: "GET" }) => {
 //     let response = await fetch_internal(resource, options);
@@ -322,36 +325,49 @@ function encodeBody(body) {
     }
 }
 
-
-globalThis.fetch = async (uri, options) => {
-    let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
-    let fetchOptions = {
-        method: (options && options.method) || "GET",
-        uri: (uri instanceof URL) ? uri.toString() : uri,
-        headers: (options && options.headers) || {},
-        body: encodedBodyData,
-    };
-    console.log(JSON.stringify(fetchOptions))
-    const { status, headers, body } = __internal_http_send({
-        method: (options && options.method) || "GET",
-        uri: (uri instanceof URL) ? uri.toString() : uri,
-        headers: (options && options.headers) || {},
-        body: encodedBodyData,
-    })
-    return Promise.resolve({
-        status,
-        headers: {
-            entries: () => Object.entries(headers || {}),
-            get: (key) => (headers && headers[key]) || null,
-            has: (key) => (headers && headers[key]) ? true : false
+globalThis.requestToEvent = (inputReq) => {
+    const request = new Request(inputReq);
+    const event = {
+        request,
+        response: {},
+        respondWith(res) {
+            console.log("Response recieved ",res);
+            this.response = res;
         },
-        arrayBuffer: () => Promise.resolve(body),
-        ok: (status > 199 && status < 300),
-        statusText: statusTextList[status],
-        text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
-        json: () => {
-            let text = new TextDecoder().decode(body || new Uint8Array())
-            return Promise.resolve(JSON.parse(text))
-        }
-    })
+    };
+    console.log("event: ", JSON.stringify(event))
+    return event;
 }
+
+// globalThis.fetch = async (uri, options) => {
+//     let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
+//     let fetchOptions = {
+//         method: (options && options.method) || "GET",
+//         uri: (uri instanceof URL) ? uri.toString() : uri,
+//         headers: (options && options.headers) || {},
+//         body: encodedBodyData,
+//     };
+//     console.log(JSON.stringify(fetchOptions))
+//     const { status, headers, body } = __internal_http_send({
+//         method: (options && options.method) || "GET",
+//         uri: (uri instanceof URL) ? uri.toString() : uri,
+//         headers: (options && options.headers) || {},
+//         body: encodedBodyData,
+//     })
+//     return Promise.resolve({
+//         status,
+//         headers: {
+//             entries: () => Object.entries(headers || {}),
+//             get: (key) => (headers && headers[key]) || null,
+//             has: (key) => (headers && headers[key]) ? true : false
+//         },
+//         arrayBuffer: () => Promise.resolve(body),
+//         ok: (status > 199 && status < 300),
+//         statusText: statusTextList[status],
+//         text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
+//         json: () => {
+//             let text = new TextDecoder().decode(body || new Uint8Array())
+//             return Promise.resolve(JSON.parse(text))
+//         }
+//     })
+// }

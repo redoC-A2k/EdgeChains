@@ -19,4 +19,9 @@ javy = { workspace = true }
 tokio = "1.36.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_bytes = { workspace = true }
+http = { workspace = true }
 quickjs-wasm-rs = "3.0.0"
+wit-bindgen = "0.24.0"
+bytes = { version = "1.6.0", features = ["serde"] }
+
