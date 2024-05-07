@@ -6,7 +6,7 @@ use javy::{
     Runtime,
 };
 
-use crate::{APIConfig, JSApiSet};
+use super::{APIConfig, JSApiSet};
 
 pub(super) struct TextEncoding;
 
@@ -81,7 +81,7 @@ fn encode_js_string_to_utf8_buffer(
 
 #[cfg(test)]
 mod tests {
-    use crate::{APIConfig, JSApiSet};
+    use super::{APIConfig, JSApiSet};
     use anyhow::Result;
     use javy::Runtime;
 

@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 
 use javy::Runtime;
 
-use crate::{APIConfig, JSApiSet};
+use super::{APIConfig, JSApiSet};
 
 pub(super) struct StreamIO;
 
