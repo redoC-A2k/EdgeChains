@@ -30,8 +30,12 @@ fn main() -> Result<()> {
         env::remove_var("EDECHAINS_JS_WIZEN");
 
         println!("\nStarting to build arakoo compatible module");
-
-        let wasm: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/engine.wasm"));
+        let wasm: Vec<u8> = if let Ok(wasm_bytes) = std::fs::read(concat!(env!("OUT_DIR"), "/engine.wasm")) {
+            wasm_bytes
+        } else {
+            // Provide a fallback wasm binary if the file is not found
+            panic!("Engine wasm not found");
+        };
 
         println!("Preinitializing using Wizer");
 
@@ -39,7 +43,7 @@ fn main() -> Result<()> {
             .allow_wasi(true)?
             .inherit_stdio(true)
             .wasm_bulk_memory(true)
-            .run(wasm)?;
+            .run(wasm.as_slice())?;
 
         let codegen_config = CodegenConfig {
             optimization_level: 3,

@@ -53,6 +53,7 @@ fn copy_javy_core() -> Result<()> {
             .unwrap()
             .join("../../target/wasm32-wasi/debug/")
     } else {
+        println!("cargo:warning=using release build for arakoo_js_engine...");
         PathBuf::from(&cargo_manifest_dir)
             .parent()
             .unwrap()
@@ -72,12 +73,12 @@ fn copy_javy_core() -> Result<()> {
     //     .run(read_file(&quickjs_provider_path)?.as_slice())?;
     // fs::File::create(&quickjs_provider_wizened_path)?.write_all(&wizened)?;
 
-    // println!("cargo:rerun-if-changed={}", engine_path.to_str().unwrap());
+    println!("cargo:rerun-if-changed={}", engine_path.to_str().unwrap());
     // println!(
     //     "cargo:rerun-if-changed={}",
     //     quickjs_provider_path.to_str().unwrap()
     // );
-    // println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build.rs");
 
     if engine_path.exists() {
         let out_dir = env::var("OUT_DIR")?;
@@ -85,6 +86,7 @@ fn copy_javy_core() -> Result<()> {
         // let copied_provider_path = Path::new(&out_dir).join("provider.wasm");
 
         fs::copy(&engine_path, copied_engine_path)?;
+        println!("cargo:warning=copied engine.wasm to OUT_DIR");
         // fs::copy(&quickjs_provider_wizened_path, copied_provider_path)?;
     }
     Ok(())
