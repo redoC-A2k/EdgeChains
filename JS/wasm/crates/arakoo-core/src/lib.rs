@@ -58,6 +58,7 @@ struct Guest;
 
 // mod execution;
 mod runtime;
+mod apis;
 
 // const FUNCTION_MODULE_NAME: &str = "function.mjs";
 

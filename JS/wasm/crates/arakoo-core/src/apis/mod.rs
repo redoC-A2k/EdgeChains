@@ -46,19 +46,14 @@ use anyhow::Result;
 use javy::Runtime;
 
 pub use api_config::APIConfig;
-#[cfg(feature = "console")]
 pub use console::LogStream;
 pub use runtime_ext::RuntimeExt;
 
 mod api_config;
-#[cfg(feature = "console")]
 mod console;
-#[cfg(feature = "random")]
 mod random;
 mod runtime_ext;
-#[cfg(feature = "stream_io")]
 mod stream_io;
-#[cfg(feature = "text_encoding")]
 mod text_encoding;
 
 pub mod http;
@@ -94,13 +89,9 @@ pub(crate) trait JSApiSet {
 /// # Ok::<(), Error>(())
 /// ```
 pub fn add_to_runtime(runtime: &Runtime, config: APIConfig) -> Result<()> {
-    #[cfg(feature = "console")]
     console::Console::new().register(runtime, &config)?;
-    #[cfg(feature = "random")]
     random::Random.register(runtime, &config)?;
-    #[cfg(feature = "stream_io")]
     stream_io::StreamIO.register(runtime, &config)?;
-    #[cfg(feature = "text_encoding")]
     text_encoding::TextEncoding.register(runtime, &config)?;
     http::Http.register(runtime, &config)?;
     // jsonnet::Jsonnet.register(runtime, &config)?;

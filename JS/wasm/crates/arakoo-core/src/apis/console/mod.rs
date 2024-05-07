@@ -6,7 +6,7 @@ use javy::{
     Runtime,
 };
 
-use crate::{APIConfig, JSApiSet};
+use super::{APIConfig, JSApiSet};
 
 pub(super) use config::ConsoleConfig;
 pub use config::LogStream;
@@ -79,8 +79,9 @@ mod tests {
     use std::rc::Rc;
     use std::{cmp, io};
 
-    use crate::console::register_console;
-    use crate::{APIConfig, JSApiSet};
+    use crate::apis::console::register_console;
+
+    use super::{APIConfig, JSApiSet};
 
     use super::Console;
 

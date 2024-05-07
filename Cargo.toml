@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "JS/wasm/crates/apis",
   "JS/wasm/crates/arakoo-core",
   "JS/wasm/crates/cli",
   "JS/wasm/crates/serve",

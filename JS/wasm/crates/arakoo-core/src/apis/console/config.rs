@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::APIConfig;
+use super::APIConfig;
 
 /// A selection of possible destination streams for `console.log` and
 /// `console.error`.

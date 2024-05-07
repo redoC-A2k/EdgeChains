@@ -1,4 +1,4 @@
-use crate::{APIConfig, JSApiSet};
+use super::{APIConfig, JSApiSet};
 use anyhow::Result;
 use javy::{
     quickjs::{from_qjs_value, to_qjs_value, JSContextRef, JSValue, JSValueRef},

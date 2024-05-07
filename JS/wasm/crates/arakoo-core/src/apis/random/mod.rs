@@ -1,7 +1,7 @@
 use anyhow::Result;
 use javy::{quickjs::JSValue, Runtime};
 
-use crate::{APIConfig, JSApiSet};
+use super::{APIConfig, JSApiSet};
 
 pub struct Random;
 
@@ -19,7 +19,9 @@ impl JSApiSet for Random {
 
 #[cfg(test)]
 mod tests {
-    use crate::{random::Random, APIConfig, JSApiSet};
+    use crate::apis::random::Random;
+
+    use super::{ APIConfig, JSApiSet};
     use anyhow::Result;
     use javy::Runtime;
 

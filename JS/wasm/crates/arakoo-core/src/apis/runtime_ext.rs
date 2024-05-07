@@ -1,7 +1,7 @@
 use anyhow::Result;
 use javy::{Config, Runtime};
 
-use crate::APIConfig;
+use super::APIConfig;
 
 /// A extension trait for [`Runtime`] that creates a [`Runtime`] with APIs
 /// provided in this crate.
@@ -25,7 +25,7 @@ pub trait RuntimeExt {
 impl RuntimeExt for Runtime {
     fn new_with_apis(config: Config, api_config: APIConfig) -> Result<Runtime> {
         let runtime = Runtime::new(config)?;
-        crate::add_to_runtime(&runtime, api_config)?;
+        super::add_to_runtime(&runtime, api_config)?;
         Ok(runtime)
     }
 
