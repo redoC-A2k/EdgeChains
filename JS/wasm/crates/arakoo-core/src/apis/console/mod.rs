@@ -5,6 +5,7 @@ use javy::{
     quickjs::{JSContextRef, JSValue, JSValueRef},
     Runtime,
 };
+use quickjs_wasm_rs::from_qjs_value;
 
 use super::{APIConfig, JSApiSet};
 
@@ -58,16 +59,59 @@ where
         // will invoke a hostcall.
         let mut log_line = String::new();
         for (i, arg) in args.iter().enumerate() {
+            let val: JSValue = from_qjs_value(*arg)?;
             if i != 0 {
                 log_line.push(' ');
             }
-            let line = arg.to_string();
-            log_line.push_str(&line);
+            if !arg.is_undefined() {
+                let proto = arg.get_property("__proto__").unwrap().to_string();
+                if proto.contains("rror") {
+                    log_line.push_str(&format!("__proto__ is {} Error in js evaluation : {:?}", proto,val));
+                } else {
+                    let line: String = log_js_value(&val);
+                    log_line.push_str(&line);
+                }
+            } else {
+                let line: String = log_js_value(&val);
+                log_line.push_str(&line);
+            }
         }
 
         writeln!(stream, "{log_line}")?;
 
         Ok(JSValue::Undefined)
+    }
+}
+
+fn log_js_value(arg: &JSValue) -> String {
+    match arg {
+        JSValue::String(s) => s.to_string(),
+        JSValue::Int(n) => n.to_string(),
+        JSValue::Bool(b) => b.to_string(),
+        JSValue::Object(o) => {
+            let flatten_obj = o
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k, log_js_value(v)))
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("Object = {{ {} }}", flatten_obj)
+        }
+        JSValue::Null => "null".to_string(),
+        JSValue::Undefined => "undefined".to_string(),
+        JSValue::Float(f) => f.to_string(),
+        JSValue::Array(arr) => {
+            let flatten_vec = arr
+                .iter()
+                .map(|v| log_js_value(v))
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("Array = [{}]", flatten_vec)
+        }
+        JSValue::ArrayBuffer(buff) => buff
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<String>>()
+            .join(", "),
     }
 }
 

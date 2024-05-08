@@ -203,133 +203,83 @@
 //     Ok(())
 // }
 
-// pub fn add_fetch_to_linker(linker: &mut Linker<WasiCtx>) -> anyhow::Result<()> {
-//     let response: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
-//     let error: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+use super::http_types::{Headers, HttpError, Method, Response};
+use http::HeaderMap;
 
-//     let response_clone = response.clone();
-//     let error_clone = error.clone();
-//     linker.func_wrap(
-//         "arakoo",
-//         "fetch",
-//         move |mut caller: Caller<'_, WasiCtx>, request_ptr: i32, request_len: i32| {
-//             let response_arc = response_clone.clone();
-//             let error = error_clone.clone();
-//             let mem = match caller.get_export("memory") {
-//                 Some(Extern::Memory(mem)) => mem,
-//                 _ => {
-//                     let mut error = error.lock().unwrap();
-//                     *error = "Memory not found".to_string();
-//                     return Err(Trap::NullReference.into());
-//                 }
-//             };
-//             let request_offset = request_ptr as u32 as usize;
-//             let mut request_buffer = vec![0; request_len as usize];
-//             let request = match mem.read(&caller, request_offset, &mut request_buffer) {
-//                 Ok(_) => match std::str::from_utf8(&request_buffer) {
-//                     Ok(s) => s.to_string(), // Clone the string here
-//                     Err(_) => {
-//                         let mut error = error.lock().unwrap();
-//                         *error = "Bad signature".to_string();
-//                         return Err(Trap::BadSignature.into());
-//                     }
-//                 },
-//                 _ => {
-//                     let mut error = error.lock().unwrap();
-//                     *error = "Memory out of bounds".to_string();
-//                     return Err(Trap::MemoryOutOfBounds.into());
-//                 }
-//             };
+pub fn log_reqwest_error(err: reqwest::Error) -> HttpError {
+    let error_desc = if err.is_timeout() {
+        "timeout error"
+    } else if err.is_connect() {
+        "connection error"
+    } else if err.is_body() || err.is_decode() {
+        "message body error"
+    } else if err.is_request() {
+        "request error"
+    } else {
+        "error"
+    };
+    tracing::warn!(
+        "Outbound HTTP {}: URL {}, error detail {:?}",
+        error_desc,
+        err.url()
+            .map(|u| u.to_string())
+            .unwrap_or_else(|| "<unknown>".to_owned()),
+        err
+    );
+    HttpError::RuntimeError
+}
 
-//             let thread_result = std::thread::spawn(move || {
-//                 Builder::new_current_thread()
-//                     .enable_all()
-//                     .build()
-//                     .unwrap()
-//                     .block_on(async {
-//                         let request: WasmInput = match serde_json::from_str(&request) {
-//                             Ok(r) => r,
-//                             Err(e) => {
-//                                 return Err(anyhow::anyhow!("Error parsing request: {}", e));
-//                             }
-//                         };
-//                         let method: reqwest::Method = match request.method().parse() {
-//                             Ok(m) => m,
-//                             Err(_) => {
-//                                 return Err(anyhow::anyhow!(
-//                                     "Invalid method: {}",
-//                                     request.method()
-//                                 ));
-//                             }
-//                         };
-//                         let client = reqwest::Client::new();
-//                         let mut builder = client.request(method, request.url());
-//                         let header = request.headers();
-//                         for (k, v) in header {
-//                             builder = builder.header(k, v);
-//                         }
-//                         builder = builder.body(request.body().to_string());
-//                         match builder.send().await {
-//                             Ok(r) => {
-//                                 let response = WasmOutput::from_reqwest_response(r).await?;
-//                                 Ok(response)
-//                             }
-//                             Err(e) => {
-//                                 error!("Error sending request: {}", e);
-//                                 return Err(anyhow::anyhow!("Error sending request: {}", e));
-//                             }
-//                         }
-//                     })
-//             })
-//             .join();
-//             let response = match thread_result {
-//                 Ok(Ok(r)) => r,
-//                 Ok(Err(e)) => {
-//                     let mut error = error.lock().unwrap();
-//                     *error = format!("Error sending request: {}", e);
-//                     error!("Error sending request: {}", e);
-//                     return Err(Trap::BadSignature.into());
-//                 }
-//                 Err(_) => {
-//                     let mut error = error.lock().unwrap();
-//                     *error = "Error sending request: thread join error".to_string();
-//                     error!("Error sending request: thread join error");
-//                     return Err(Trap::BadSignature.into());
-//                 }
-//             };
+pub fn method_from(m: Method) -> http::Method {
+    match m {
+        Method::Get => http::Method::GET,
+        Method::Post => http::Method::POST,
+        Method::Put => http::Method::PUT,
+        Method::Delete => http::Method::DELETE,
+        Method::Patch => http::Method::PATCH,
+        Method::Head => http::Method::HEAD,
+        Method::Options => http::Method::OPTIONS,
+    }
+}
 
-//             let res = serde_json::to_string(&response).unwrap();
-//             let mut response = response_arc.lock().unwrap();
-//             *response = res;
-//             Ok(())
-//         },
-//     )?;
-//     // add the fetch_output_len and fetch_output functions here
-//     let response_clone = response.clone();
-//     linker.func_wrap("arakoo", "get_response_len", move || -> i32 {
-//         let response_clone = response_clone.clone();
-//         let response = response_clone.lock().unwrap().clone();
-//         response.len() as i32
-//     })?;
+pub async fn response_from_reqwest(res: reqwest::Response) -> Result<Response, HttpError> {
+    let status = res.status().as_u16();
+    let headers = response_headers(res.headers()).map_err(|_| HttpError::RuntimeError)?;
+    let status_text = (&res.status().canonical_reason().unwrap_or("")).to_string();
+    let body = Some(
+        res.bytes()
+            .await
+            .map_err(|_| HttpError::RuntimeError)?
+            .to_vec(),
+    );
 
-//     // also add the fetch_error_len and fetch_error functions here
-//     linker.func_wrap(
-//         "arakoo",
-//         "get_response",
-//         move |mut _caller: Caller<'_, WasiCtx>, ptr: i32| {
-//             let response_clone = response.clone();
-//             let mem = match _caller.get_export("memory") {
-//                 Some(Extern::Memory(mem)) => mem,
-//                 _ => return Err(Trap::NullReference.into()),
-//             };
-//             let offset = ptr as u32 as usize;
-//             let response = response_clone.lock().unwrap().clone();
-//             match mem.write(&mut _caller, offset, response.as_bytes()) {
-//                 Ok(_) => {}
-//                 _ => return Err(Trap::MemoryOutOfBounds.into()),
-//             };
-//             Ok(())
-//         },
-//     )?;
-//     Ok(())
-// }
+    Ok(Response {
+        status,
+        headers,
+        body,
+        status_text,
+    })
+}
+
+pub fn request_headers(h: Headers) -> anyhow::Result<HeaderMap> {
+    let mut res = HeaderMap::new();
+    for (k, v) in h {
+        res.insert(
+            http::header::HeaderName::try_from(k)?,
+            http::header::HeaderValue::try_from(v)?,
+        );
+    }
+    Ok(res)
+}
+
+pub fn response_headers(h: &HeaderMap) -> anyhow::Result<Option<Vec<(String, String)>>> {
+    let mut res: Vec<(String, String)> = vec![];
+
+    for (k, v) in h {
+        res.push((
+            k.to_string(),
+            std::str::from_utf8(v.as_bytes())?.to_string(),
+        ));
+    }
+
+    Ok(Some(res))
+}
