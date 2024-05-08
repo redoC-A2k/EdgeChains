@@ -331,7 +331,7 @@ globalThis.requestToEvent = (inputReq) => {
         request,
         response: {},
         respondWith(res) {
-            console.log("Response recieved ",res);
+            console.log("Response recieved ", res);
             this.response = res;
         },
     };
@@ -339,35 +339,38 @@ globalThis.requestToEvent = (inputReq) => {
     return event;
 }
 
-// globalThis.fetch = async (uri, options) => {
-//     let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
-//     let fetchOptions = {
-//         method: (options && options.method) || "GET",
-//         uri: (uri instanceof URL) ? uri.toString() : uri,
-//         headers: (options && options.headers) || {},
-//         body: encodedBodyData,
-//     };
-//     console.log(JSON.stringify(fetchOptions))
-//     const { status, headers, body } = __internal_http_send({
-//         method: (options && options.method) || "GET",
-//         uri: (uri instanceof URL) ? uri.toString() : uri,
-//         headers: (options && options.headers) || {},
-//         body: encodedBodyData,
-//     })
-//     return Promise.resolve({
-//         status,
-//         headers: {
-//             entries: () => Object.entries(headers || {}),
-//             get: (key) => (headers && headers[key]) || null,
-//             has: (key) => (headers && headers[key]) ? true : false
-//         },
-//         arrayBuffer: () => Promise.resolve(body),
-//         ok: (status > 199 && status < 300),
-//         statusText: statusTextList[status],
-//         text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
-//         json: () => {
-//             let text = new TextDecoder().decode(body || new Uint8Array())
-//             return Promise.resolve(JSON.parse(text))
-//         }
-//     })
-// }
+function fetch(uri, options) {
+    console.log("In fetch function", uri, options)
+    let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
+    const { status, headers, body } = __internal_http_send({
+        method: (options && options.method) || "GET",
+        uri: (uri instanceof URL) ? uri.toString() : uri,
+        headers: (options && options.headers) || {},
+        body: encodedBodyData,
+        params: (options && options.params) || {},
+    })
+    console.log("Response from fetch", status, headers, body)
+    let obj;
+    try {
+        obj = {
+            status,
+            headers: {
+                entries: () => Object.entries(headers || {}),
+                get: (key) => (headers && headers[key]) || null,
+                has: (key) => (headers && headers[key]) ? true : false
+            },
+            arrayBuffer: () => Promise.resolve(body),
+            ok: (status > 199 && status < 300),
+            statusText:httpStatus[status],
+            text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
+            json: () => {
+                let text = new TextDecoder().decode(body || new Uint8Array())
+                return Promise.resolve(JSON.parse(text))
+            }
+        }
+    } catch (error) {
+        console.log("Error occured in sending response from fetch")
+        console.log(error)
+    }
+    return Promise.resolve(obj);
+}

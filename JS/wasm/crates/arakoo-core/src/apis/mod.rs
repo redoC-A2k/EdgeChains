@@ -44,10 +44,14 @@
 
 use anyhow::Result;
 use javy::Runtime;
+use super::wit;
 
 pub use api_config::APIConfig;
 pub use console::LogStream;
 pub use runtime_ext::RuntimeExt;
+
+pub mod http;
+pub mod types;
 
 mod api_config;
 mod console;
@@ -55,9 +59,10 @@ mod random;
 mod runtime_ext;
 mod stream_io;
 mod text_encoding;
-
-pub mod http;
 mod pdfparse;
+mod fetch;
+
+
 
 // mod jsonnet;
 
@@ -96,5 +101,6 @@ pub fn add_to_runtime(runtime: &Runtime, config: APIConfig) -> Result<()> {
     http::Http.register(runtime, &config)?;
     // jsonnet::Jsonnet.register(runtime, &config)?;
     pdfparse::PDFPARSER.register(runtime, &config)?;
+    fetch::Fetch.register(runtime, &config)?;
     Ok(())
 }

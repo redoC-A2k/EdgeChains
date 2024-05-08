@@ -27,6 +27,7 @@ use hyper::{
     Body, Request, Response,
 };
 
+use reqwest::Url;
 use tracing::{error, event, info, Level};
 use tracing_subscriber::{filter::EnvFilter, FmtSubscriber};
 // use wasi_common::WasiCtx;
@@ -72,6 +73,7 @@ pub struct WorkerCtx {
 struct Host {
     table: ResourceTable,
     wasi: WasiCtx,
+    client: Option<reqwest::Client>,
 }
 
 impl WasiView for Host {
@@ -85,15 +87,46 @@ impl WasiView for Host {
 }
 
 use wit::arakoo::edgechains::http as outbound_http;
+use wit::arakoo::edgechains::http_types::{HttpError};
+
 #[async_trait]
 impl outbound_http::Host for Host {
     async fn send_request(
         &mut self,
-        request: http_types::Request,
+        req: http_types::Request,
     ) -> wasmtime::Result<Result<http_types::Response, http_types::HttpError>> {
-        todo!()
+        // println!("Sending request: {:?}", request);
+        Ok(async {
+            tracing::log::trace!("Attempting to send outbound HTTP request to {}", req.uri);
+
+            let method = binding::method_from(req.method);
+            let url = Url::parse(&req.uri).map_err(|_| HttpError::InvalidUrl)?;
+            let headers = binding::request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
+            let body = req.body.unwrap_or_default().to_vec();
+
+            if !req.params.is_empty() {
+                tracing::log::warn!("HTTP params field is deprecated");
+            }
+
+            // Allow reuse of Client's internal connection pool for multiple requests
+            // in a single component execution
+            let client = self.client.get_or_insert_with(Default::default);
+
+            let resp = client
+                .request(method, url)
+                .headers(headers)
+                .body(body)
+                .send()
+                .await
+                .map_err(binding::log_reqwest_error)?;
+            tracing::log::trace!("Returning response from outbound request to {}", req.uri);
+            binding::response_from_reqwest(resp).await
+        }
+        .await)
     }
 }
+
+impl http_types::Host for Host {}
 
 impl WorkerCtx {
     pub fn new(component_path: impl AsRef<Path>) -> anyhow::Result<Self> {
@@ -165,7 +198,7 @@ impl WorkerCtx {
             }
 
             Err(e) => {
-                error!("Error: {}", e);
+                error!("Error: {:?}", e);
                 let response = Response::builder()
                     .status(500)
                     .body(Body::from("Internal Server Error"))
@@ -292,7 +325,7 @@ impl WorkerCtx {
         let table: ResourceTable = ResourceTable::new();
 
         // Create a new store with the WASI context.
-        let mut store = Store::new(self.engine(), Host { table, wasi });
+        let mut store = Store::new(self.engine(), Host { table, wasi, client: None});
 
         // Instantiate the WebAssembly module with the linker and store.
         // linker.module(&mut store, "", self.module())?;
@@ -323,6 +356,7 @@ impl WorkerCtx {
             params: wasm_input.params,
             body: wasm_input.body,
         };
+        wit::Reactor::add_to_linker(&mut linker, |x| x)?;
         let (reactor, instance) =
             wit::Reactor::instantiate_async(&mut store, self.component(), &linker).await?;
         let guest = reactor.arakoo_edgechains_inbound_http();

@@ -2,7 +2,6 @@ use anyhow::anyhow;
 use anyhow::Result;
 use javy::quickjs::from_qjs_value;
 use javy::quickjs::to_qjs_value;
-use javy::quickjs::Deserializer;
 use javy::quickjs::JSContextRef;
 use javy::quickjs::JSValue;
 use javy::quickjs::JSValueRef;
@@ -18,25 +17,7 @@ use std::sync::Mutex;
 
 use serde_bytes::ByteBuf;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct HttpRequest {
-    pub method: String,
-    pub uri: String,
-    #[serde(default)]
-    pub headers: HashMap<String, String>,
-    pub params: HashMap<String, String>,
-    pub body: Option<ByteBuf>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct HttpResponse {
-    pub status: u16,
-    #[serde(default)]
-    pub headers: HashMap<String, String>,
-    pub body: Option<ByteBuf>,
-    pub status_text: String,
-
-}
+use crate::apis::types::HttpRequest;
 
 pub mod wit {
     use wit_bindgen::generate;
@@ -48,6 +29,7 @@ pub mod wit {
 
     use super::Guest;
     export!(Guest);
+    
     pub use self::arakoo::edgechains::http_types::{Method, Request, Response};
     pub use self::exports::arakoo::edgechains::inbound_http;
     pub use self::arakoo::edgechains;

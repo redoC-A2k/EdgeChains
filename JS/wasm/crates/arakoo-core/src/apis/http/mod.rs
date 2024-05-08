@@ -1,5 +1,3 @@
-pub mod types;
-
 use anyhow::Result;
 use super::JSApiSet;
 
