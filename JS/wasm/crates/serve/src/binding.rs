@@ -1,3 +1,7 @@
+use super::http_types::{Headers, HttpError, Method, Response};
+use async_trait::async_trait;
+use http::HeaderMap;
+
 // use std::{
 //     env,
 //     sync::{Arc, Mutex},
@@ -6,20 +10,16 @@
 // use arakoo_jsonnet::{
 //     ext_string, jsonnet_destroy, jsonnet_evaluate_file, jsonnet_evaluate_snippet, jsonnet_make,
 // };
+use jrsonnet_evaluator::{function::TlaArg, gc::GcHashMap, manifest::ManifestFormat, trace::TraceFormat, State};
+use jrsonnet_parser::IStr;
 
-// use std::{fs, io};
+use std::{fs, io};
 // use tokio::runtime::Builder;
-// use tracing::error;
+use tracing::error;
 // use wasmtime::*;
 
-// use crate::io::{WasmInput, WasmOutput};
+use crate::io::{WasmInput, WasmOutput};
 
-// // pub struct VM {
-// //     state: State,
-// //     manifest_format: Box<dyn ManifestFormat>,
-// //     trace_format: Box<dyn TraceFormat>,
-// //     tla_args: GcHashMap<IStr, TlaArg>,
-// // }
 
 // /// Adds exported functions to the Wasm linker.
 // ///
@@ -203,8 +203,33 @@
 //     Ok(())
 // }
 
-use super::http_types::{Headers, HttpError, Method, Response};
-use http::HeaderMap;
+#[async_trait]
+impl super::jsonnet::Host for super::Host{
+    async fn jsonnet_make(&mut self,) ->  wasmtime::Result<u64> {
+        let ptr = arakoo_jsonnet::jsonnet_make();
+        Ok(ptr as u64)
+    }
+
+    async fn jsonnet_evaluate_snippet(&mut self, vm: u64, code: String) -> wasmtime::Result<String> {
+        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(vm as *mut arakoo_jsonnet::VM, "snippet", &code);
+        Ok(out)
+    }    
+
+    async fn jsonnet_evaluate_file(&mut self, vm: u64, path: String) -> wasmtime::Result<String> {
+        let out = arakoo_jsonnet::jsonnet_evaluate_file(vm as *mut arakoo_jsonnet::VM, &path);
+        Ok(out)
+    }
+
+    async fn jsonnet_ext_string(&mut self, vm: u64, key: String, value: String) -> wasmtime::Result<()> {
+        arakoo_jsonnet::jsonnet_ext_string(vm as *mut arakoo_jsonnet::VM, &key, &value);
+        Ok(())
+    }
+
+    async fn jsonnet_destroy(&mut self, vm: u64) -> wasmtime::Result<()> {
+        arakoo_jsonnet::jsonnet_destroy(vm as *mut arakoo_jsonnet::VM);
+        Ok(())
+    }
+}
 
 pub fn log_reqwest_error(err: reqwest::Error) -> HttpError {
     let error_desc = if err.is_timeout() {

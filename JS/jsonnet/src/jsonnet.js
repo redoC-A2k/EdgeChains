@@ -8,7 +8,7 @@ if (!isArakoo) {
         jsonnet_evaluate_snippet,
         jsonnet_destroy,
         jsonnet_make,
-        ext_string,
+        jsonnet_ext_string,
         jsonnet_evaluate_file,
         get_func,
         set_func,
@@ -24,7 +24,7 @@ if (!isArakoo) {
         }
 
         extString(key, value) {
-            ext_string(this.vm, key, value);
+            jsonnet_ext_string(this.vm, key, value);
             return this;
         }
 

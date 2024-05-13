@@ -87,7 +87,8 @@ impl WasiView for Host {
 }
 
 use wit::arakoo::edgechains::http as outbound_http;
-use wit::arakoo::edgechains::http_types::{HttpError};
+use wit::arakoo::edgechains::http_types::HttpError;
+use wit::arakoo::edgechains::jsonnet;
 
 #[async_trait]
 impl outbound_http::Host for Host {
@@ -101,7 +102,8 @@ impl outbound_http::Host for Host {
 
             let method = binding::method_from(req.method);
             let url = Url::parse(&req.uri).map_err(|_| HttpError::InvalidUrl)?;
-            let headers = binding::request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
+            let headers =
+                binding::request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
             let body = req.body.unwrap_or_default().to_vec();
 
             if !req.params.is_empty() {
@@ -325,7 +327,14 @@ impl WorkerCtx {
         let table: ResourceTable = ResourceTable::new();
 
         // Create a new store with the WASI context.
-        let mut store = Store::new(self.engine(), Host { table, wasi, client: None});
+        let mut store = Store::new(
+            self.engine(),
+            Host {
+                table,
+                wasi,
+                client: None,
+            },
+        );
 
         // Instantiate the WebAssembly module with the linker and store.
         // linker.module(&mut store, "", self.module())?;
