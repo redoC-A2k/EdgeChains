@@ -61,23 +61,7 @@ mod stream_io;
 mod text_encoding;
 mod pdfparse;
 mod fetch;
-
-
-
-// mod jsonnet;
-
-// #[link(wasm_import_module = "arakoo")]
-// extern "C" {
-//     fn jsonnet_evaluate(var_ptr: *const u8, var_len: i32, code_ptr: *const u8, code_len: i32);
-//     fn jsonnet_evaluate_file(var_ptr: *const u8, var_len: i32, path_ptr: *const u8, path_len: i32);
-//     fn jsonnet_output_len() -> i32;
-//     fn jsonnet_output(ptr: *mut u8);
-//     fn fetch(request_pointer: *const u8, request_len: i32);
-//     fn get_response_len() -> i32;
-//     fn get_response(ptr: *mut u8);
-// }
-
-
+mod jsonnet;
 pub(crate) trait JSApiSet {
     fn register(&self, runtime: &Runtime, config: &APIConfig) -> Result<()>;
 }
@@ -99,7 +83,7 @@ pub fn add_to_runtime(runtime: &Runtime, config: APIConfig) -> Result<()> {
     stream_io::StreamIO.register(runtime, &config)?;
     text_encoding::TextEncoding.register(runtime, &config)?;
     http::Http.register(runtime, &config)?;
-    // jsonnet::Jsonnet.register(runtime, &config)?;
+    jsonnet::Jsonnet.register(runtime, &config)?;
     pdfparse::PDFPARSER.register(runtime, &config)?;
     fetch::Fetch.register(runtime, &config)?;
     Ok(())

@@ -3,7 +3,7 @@ interface jsonnet {
         key:string
     }
     jsonnet-make: func() -> u64;
-    jsonnet-evaluate-snippet: func(vm: u64,code: string) -> string;
+    jsonnet-evaluate-snippet: func(vm: u64,file: string,code: string) -> string;
     jsonnet-evaluate-file: func(vm: u64,path: string) -> string;
     jsonnet-ext-string: func(vm: u64,key: string, value: string);
     jsonnet-destroy: func(vm: u64);

@@ -21,7 +21,7 @@ build({
     // entryPoints: ["src/index.js"],
     bundle: true,
     // minify: true,
-    // minifySyntax: true,
+    minifySyntax: true,
     // outfile: "bin/app.js",
     outdir: "bin",
     // inject:["shim.js"],

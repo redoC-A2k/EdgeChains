@@ -55,24 +55,35 @@ if (!isArakoo) {
     };
 } else {
     Jsonnet = class Jsonnet {
-        constructor() {
-            this.vars = {};
+        constructor() {}
+
+        #getVm() {
+            if (!this.vm) {
+                this.vm = __jsonnet_make();
+            }
+            return this.vm;
+        }
+
+        evaluateSnippet(snippet) {
+            let vm = this.#getVm();
+            return __jsonnet_evaluate_snippet(vm, snippet);
         }
 
         extString(key, value) {
-            this.vars[key] = value;
+            let vm = this.#getVm();
+            __jsonnet_ext_string(vm, key, value);
             return this;
         }
-        evaluateSnippet(snippet) {
-            let vars = JSON.stringify(this.vars);
-            return __jsonnet_evaluate_snippet(vars, snippet);
-        }
+
         evaluateFile(filename) {
-            let vars = JSON.stringify(this.vars);
-            return __jsonnet_evaluate_file(vars, filename);
+            let vm = this.#getVm();
+            return __jsonnet_evaluate_file(vm, filename);
         }
 
-        destroy() {}
+        destroy() { 
+            let vm = this.#getVm();
+            __jsonnet_destroy(vm);
+        }
     };
 }
 

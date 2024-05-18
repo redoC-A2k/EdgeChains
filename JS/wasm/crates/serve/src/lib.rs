@@ -1,4 +1,8 @@
 // mod binding;
+use wit::arakoo::edgechains::http as outbound_http;
+use wit::arakoo::edgechains::http_types::HttpError;
+use wit::arakoo::edgechains::jsonnet;
+
 mod binding;
 mod io;
 
@@ -27,13 +31,11 @@ use hyper::{
     Body, Request, Response,
 };
 
-use reqwest::Url;
 use tracing::{error, event, info, Level};
 use tracing_subscriber::{filter::EnvFilter, FmtSubscriber};
 // use wasi_common::WasiCtx;
 use wasmtime_wasi::{bindings, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
-use async_trait::async_trait;
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store, WasmBacktraceDetails};
 use wit::arakoo::edgechains::http_types;
@@ -83,48 +85,6 @@ impl WasiView for Host {
 
     fn ctx(&mut self) -> &mut wasmtime_wasi::WasiCtx {
         &mut self.wasi
-    }
-}
-
-use wit::arakoo::edgechains::http as outbound_http;
-use wit::arakoo::edgechains::http_types::HttpError;
-use wit::arakoo::edgechains::jsonnet;
-
-#[async_trait]
-impl outbound_http::Host for Host {
-    async fn send_request(
-        &mut self,
-        req: http_types::Request,
-    ) -> wasmtime::Result<Result<http_types::Response, http_types::HttpError>> {
-        // println!("Sending request: {:?}", request);
-        Ok(async {
-            tracing::log::trace!("Attempting to send outbound HTTP request to {}", req.uri);
-
-            let method = binding::method_from(req.method);
-            let url = Url::parse(&req.uri).map_err(|_| HttpError::InvalidUrl)?;
-            let headers =
-                binding::request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
-            let body = req.body.unwrap_or_default().to_vec();
-
-            if !req.params.is_empty() {
-                tracing::log::warn!("HTTP params field is deprecated");
-            }
-
-            // Allow reuse of Client's internal connection pool for multiple requests
-            // in a single component execution
-            let client = self.client.get_or_insert_with(Default::default);
-
-            let resp = client
-                .request(method, url)
-                .headers(headers)
-                .body(body)
-                .send()
-                .await
-                .map_err(binding::log_reqwest_error)?;
-            tracing::log::trace!("Returning response from outbound request to {}", req.uri);
-            binding::response_from_reqwest(resp).await
-        }
-        .await)
     }
 }
 

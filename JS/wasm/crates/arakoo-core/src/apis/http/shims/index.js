@@ -173,7 +173,8 @@ class Request {
         this.headers = new Headers(input.headers || {});
         let bodyArray = new Uint8Array(input.body);
         let bodyString = decoder.decode(bodyArray);
-        this.body = JSON.parse(bodyString);
+        if (bodyString != undefined && bodyString.length > 0)
+            this.body = JSON.parse(bodyString);
         this.params = input.params || {};
         this.geo = input.geo || {};
     }
@@ -361,7 +362,7 @@ function fetch(uri, options) {
             },
             arrayBuffer: () => Promise.resolve(body),
             ok: (status > 199 && status < 300),
-            statusText:httpStatus[status],
+            statusText: httpStatus[status],
             text: () => Promise.resolve(new TextDecoder().decode(body || new Uint8Array())),
             json: () => {
                 let text = new TextDecoder().decode(body || new Uint8Array())
