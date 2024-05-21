@@ -29,18 +29,18 @@ pub mod wit {
 
     use super::Guest;
     export!(Guest);
-    
+
+    pub use self::arakoo::edgechains;
     pub use self::arakoo::edgechains::http_types::{Method, Request, Response};
     pub use self::exports::arakoo::edgechains::inbound_http;
-    pub use self::arakoo::edgechains;
+    pub use self::exports::arakoo::edgechains::jsonnet_func;
 }
-
 
 struct Guest;
 
 // mod execution;
-mod runtime;
 mod apis;
+mod runtime;
 
 // const FUNCTION_MODULE_NAME: &str = "function.mjs";
 
@@ -128,7 +128,8 @@ pub extern "C" fn init() {
 
 impl wit::inbound_http::Guest for Guest {
     fn handle_request(req: wit::Request) -> wit::Response {
-        println!("{:?}", req);
+        // TODO: log on env variable basis
+        // println!("{:?}", req);
         let context = **CONTEXT.get().unwrap();
         let mut serializer =
             javy::quickjs::Serializer::from_context(context).expect("Unable to create serializer");
@@ -165,7 +166,7 @@ impl wit::inbound_http::Guest for Guest {
             .expect("unable to serialize httprequest");
         let request_value = serializer.value;
         // println!("body of httpRequest : {:?}", from_qjs_value(request_value).unwrap());
-        let global =  GLOBAL.get().unwrap() ;
+        let global = GLOBAL.get().unwrap();
         let request_to_event = global
             .get_property("requestToEvent")
             .expect("Unable to get requestToEvent");
@@ -179,8 +180,8 @@ impl wit::inbound_http::Guest for Guest {
             .call(global, &[event_request, event])
             .expect("Unable to call handler");
 
-        let on_resolve =  ON_RESOLVE.get().unwrap().clone() ;
-        let on_reject =  ON_REJECT.get().unwrap().clone() ;
+        let on_resolve = ON_RESOLVE.get().unwrap().clone();
+        let on_reject = ON_REJECT.get().unwrap().clone();
         let then_func = promise.get_property("then").unwrap();
         if then_func.is_function() {
             then_func
@@ -233,6 +234,33 @@ impl wit::inbound_http::Guest for Guest {
             }
         } else {
             panic!("Response is not object {:?}", response);
+        }
+    }
+}
+
+impl wit::jsonnet_func::Guest for Guest {
+    fn jsonnet_call_native_func(func_name: String, func_args: String) -> String {
+        let context = **CONTEXT.get().unwrap();
+        let global = GLOBAL.get().unwrap();
+        let func_map = global.get_property("____jsonnet_func_map").unwrap();
+        if func_map.is_object() {
+            let func = func_map.get_property(&*func_name).unwrap();
+            let arg_str = serde_json::to_string(&func_args).expect("Error converting args to JSON");
+            let arg = JSValue::String(arg_str);
+            if func.is_function() {
+                let result = func
+                    .call(global, &[to_qjs_value(context, &arg).unwrap()])
+                    .unwrap();
+                if result.is_str() {
+                    return result.as_str().unwrap().to_string();
+                } else {
+                    panic!("Function not found {:?}", func_name);
+                }
+            } else {
+                panic!("Function not found {:?}", func_name);
+            }
+        } else {
+            panic!("Function map not found {:?}", func_name);
         }
     }
 }

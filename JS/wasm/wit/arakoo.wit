@@ -4,4 +4,5 @@ world reactor {
     import http;
     import jsonnet;
     export inbound-http;
+    export jsonnet-func;
 }

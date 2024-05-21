@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, path::Path};
 
+use console_error_panic_hook;
 use jrsonnet_evaluator::{
     apply_tla,
     error::ErrorKind,
@@ -17,9 +18,8 @@ use jrsonnet_gcmodule::Trace;
 use jrsonnet_parser::IStr;
 use std::alloc;
 use wasm_bindgen::prelude::*;
-use console_error_panic_hook;
 
-mod context;
+pub mod context;
 
 #[wasm_bindgen(module = "/read-file.js")]
 extern "C" {
@@ -35,30 +35,36 @@ extern "C" {
 }
 
 pub struct VM {
-    state: State,
-    manifest_format: Box<dyn ManifestFormat>,
-    trace_format: Box<dyn TraceFormat>,
-    tla_args: GcHashMap<IStr, TlaArg>,
+    pub state: State,
+    pub manifest_format: Box<dyn ManifestFormat>,
+    pub trace_format: Box<dyn TraceFormat>,
+    pub tla_args: GcHashMap<IStr, TlaArg>,
 }
+
+#[cfg(feature = "nodejs")]
 
 pub struct NativeContext {
     // pub vm: &'a VM,
     pub vm: *mut VM,
 }
 
+#[cfg(feature = "nodejs")]
 pub struct MapStruct {
     pub func_map: HashMap<String, js_sys::Function>,
 }
 
+#[cfg(feature = "nodejs")]
 static mut map_struct: Option<MapStruct> = None;
 
 #[wasm_bindgen]
 pub fn jsonnet_make() -> *mut VM {
+    #[cfg(feature = "nodejs")]
     unsafe {
         map_struct = Some(MapStruct {
             func_map: HashMap::new(),
         });
     }
+
     let state = State::default();
     console_error_panic_hook::set_once();
     state.settings_mut().import_resolver = tb!(FileImportResolver::default());
@@ -141,6 +147,7 @@ pub fn jsonnet_ext_string(vm: *mut VM, key: &str, value: &str) {
         .add_ext_var(key.into(), Val::Str(value.into()));
 }
 
+#[cfg(feature = "nodejs")]
 #[wasm_bindgen]
 pub fn get_func(name: &str) -> Option<js_sys::Function> {
     unsafe {
@@ -151,7 +158,7 @@ pub fn get_func(name: &str) -> Option<js_sys::Function> {
         }
     }
 }
-
+#[cfg(feature = "nodejs")]
 #[wasm_bindgen]
 pub fn set_func(name: String, func: js_sys::Function) {
     unsafe {
@@ -159,9 +166,11 @@ pub fn set_func(name: String, func: js_sys::Function) {
     }
 }
 
+#[cfg(feature = "nodejs")]
 #[derive(jrsonnet_gcmodule::Trace)]
-struct NativeJSCallback(String);
+pub struct NativeJSCallback(String);
 
+#[cfg(feature = "nodejs")]
 impl NativeCallbackHandler for NativeJSCallback {
     fn call(&self, args: &[Val]) -> jrsonnet_evaluator::Result<Val> {
         let this = JsValue::null();
@@ -187,6 +196,7 @@ impl NativeCallbackHandler for NativeJSCallback {
 }
 
 // Function to register the native callback
+#[cfg(feature = "nodejs")]
 #[wasm_bindgen]
 pub extern "C" fn register_native_callback(vm: *mut VM, name: String, args_num: u32) {
     let vm = unsafe { &*vm };

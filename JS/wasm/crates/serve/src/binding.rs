@@ -11,40 +11,164 @@ use reqwest::Url;
 // use arakoo_jsonnet::{
 //     ext_string, jsonnet_destroy, jsonnet_evaluate_file, jsonnet_evaluate_snippet, jsonnet_make,
 // };
-use jrsonnet_evaluator::{function::TlaArg, gc::GcHashMap, manifest::ManifestFormat, trace::TraceFormat, State};
+use jrsonnet_evaluator::{
+    function::{
+        builtin::{NativeCallback, NativeCallbackHandler},
+        TlaArg,
+    },
+    gc::GcHashMap,
+    manifest::ManifestFormat,
+    trace::TraceFormat,
+    State, Val,
+};
 use jrsonnet_parser::IStr;
+use tokio::runtime::Handle;
 
-use std::{fs, io};
+use std::{fs, io, ops::DerefMut};
 // use tokio::runtime::Builder;
-use tracing::error;
+use tracing::{debug, error};
 // use wasmtime::*;
 
 use crate::io::{WasmInput, WasmOutput};
 
+#[derive(jrsonnet_gcmodule::Trace)]
+pub struct NativeJSCallback(String);
+
+impl NativeCallbackHandler for NativeJSCallback {
+    fn call(
+        &self,
+        args: &[jrsonnet_evaluator::Val],
+    ) -> jrsonnet_evaluator::Result<jrsonnet_evaluator::Val> {
+        // unsafe {
+        //     reactor = super::REACTOR.clone().expect("Component not instantiated");
+        // }
+        // let store_ref;
+        // unsafe {
+        //     store_ref = super::STORE.clone().expect("Store not instantiated");
+        // }
+        // let reactor = unsafe { super::REACTOR.as_ref() };
+        // let store = unsafe { super::STORE.as_mut() };
+        // let reactor = reactor.expect("Reactor not initialized");
+        // let store = store.expect("Store not initialized");
+        // let output = tokio::runtime::Runtime::new()
+        //     .unwrap()
+        //     .block_on(async {
+        //         // let mut store = store_ref.lock().await;
+        //         let jsonnet_guest = reactor.arakoo_edgechains_jsonnet_func();
+        //         println!("Calling guest function");
+        //         let result = jsonnet_guest.call_jsonnet_call_native_func(store, &self.0, "").await;
+        //         result
+        //     })
+        //     .expect("Unable to call function from jsonnet on guest");
+        // println!("output from guest : {}", &output);
+        unsafe {
+            let handle = Handle::current();
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(async {
+                    debug!("Acquiring lock of reactor");
+                    // let reactor = super::REACTOR
+                    //     .as_ref()
+                    //     .expect("Unable to get reactor option")
+                    //     .lock()
+                    //     .await;
+                    let reactor = super::REACTOR.clone().unwrap();
+                    debug!("Acquiring lock of store");
+                    // let mut store = super::STORE
+                    //     .as_ref()
+                    //     .expect("Unable to get store option")
+                    //     .lock()
+                    //     .await;
+                    // let wasi = super::WasiCtxBuilder::new()
+                    //     .inherit_stdout()
+                    //     .inherit_stderr()
+                    //     .build();
+
+                    // let table = super::ResourceTable::new();
+                    // let mut store = super::Store::new(
+                    //     super::WORKER_CTX.as_ref().unwrap().clone().engine(),
+                    //     super::Host {
+                    //         table,
+                    //         wasi,
+                    //         client: None,
+                    //     },
+                    // );
+                    let store = super::STORE.as_mut().unwrap();
+                    debug!("Calling guest native function");
+                    let guest = reactor.arakoo_edgechains_jsonnet_func();
+                    let result = guest
+                        .call_jsonnet_call_native_func(&mut *store, &self.0, "")
+                        .await
+                        .expect("Unable to call function from jsonnet on guest");
+                    debug!("Result from guest : {:?}", &result);
+                    result
+                })
+            });
+            Ok(Val::Str(result.into()))
+        }
+    }
+}
 
 #[async_trait]
-impl super::jsonnet::Host for super::Host{
-    async fn jsonnet_make(&mut self,) ->  wasmtime::Result<u64> {
+impl super::jsonnet::Host for super::Host {
+    async fn jsonnet_make(&mut self) -> wasmtime::Result<u64> {
         let ptr = arakoo_jsonnet::jsonnet_make();
         Ok(ptr as u64)
     }
 
-    async fn jsonnet_evaluate_snippet(&mut self, vm: u64,file:String, code: String) -> wasmtime::Result<String> {
-        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(vm as *mut arakoo_jsonnet::VM, &file, &code);
+    async fn jsonnet_evaluate_snippet(
+        &mut self,
+        vm: u64,
+        file: String,
+        code: String,
+    ) -> wasmtime::Result<String> {
+        let out =
+            arakoo_jsonnet::jsonnet_evaluate_snippet(vm as *mut arakoo_jsonnet::VM, &file, &code);
         Ok(out)
-    }    
+    }
 
     async fn jsonnet_evaluate_file(&mut self, vm: u64, path: String) -> wasmtime::Result<String> {
         let code = fs::read_to_string(&path).map_err(|e| {
             error!("Failed to read file {}: {}", path, e);
             io::Error::new(io::ErrorKind::Other, e)
         })?;
-        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(vm as *mut arakoo_jsonnet::VM, "snippet", &code);
+        debug!("Code snippet in file : {}", &code);
+        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(
+            vm as *mut arakoo_jsonnet::VM,
+            "snippet",
+            &code,
+        );
+        debug!("Out : {}", &out);
         Ok(out)
     }
 
-    async fn jsonnet_ext_string(&mut self, vm: u64, key: String, value: String) -> wasmtime::Result<()> {
+    async fn jsonnet_ext_string(
+        &mut self,
+        vm: u64,
+        key: String,
+        value: String,
+    ) -> wasmtime::Result<()> {
         arakoo_jsonnet::jsonnet_ext_string(vm as *mut arakoo_jsonnet::VM, &key, &value);
+        Ok(())
+    }
+
+    async fn jsonnet_register_func(
+        &mut self,
+        vmptr: u64,
+        func_name: String,
+        args_num: u32,
+    ) -> wasmtime::Result<()> {
+        let vm = vmptr as *mut arakoo_jsonnet::VM;
+        let vm = unsafe { &*vm };
+        let any_resolver = vm.state.context_initializer();
+        let args_vec = vec![String::from("x"); args_num as usize];
+        any_resolver
+            .as_any()
+            .downcast_ref::<arakoo_jsonnet::context::ArakooContextInitializer>()
+            .expect("only arakoo context initializer supported")
+            .add_native(
+                func_name.clone(),
+                NativeCallback::new(args_vec, NativeJSCallback(func_name)),
+            );
         Ok(())
     }
 
@@ -54,7 +178,7 @@ impl super::jsonnet::Host for super::Host{
     }
 }
 
-// Bindings for jsonnet 
+// Bindings for jsonnet
 
 #[async_trait]
 impl super::outbound_http::Host for super::Host {
@@ -68,8 +192,7 @@ impl super::outbound_http::Host for super::Host {
 
             let method = method_from(req.method);
             let url = Url::parse(&req.uri).map_err(|_| HttpError::InvalidUrl)?;
-            let headers =
-                request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
+            let headers = request_headers(req.headers).map_err(|_| HttpError::RuntimeError)?;
             let body = req.body.unwrap_or_default().to_vec();
 
             if !req.params.is_empty() {

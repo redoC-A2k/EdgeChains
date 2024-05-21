@@ -1,5 +1,8 @@
+use std::{collections::HashMap, hash::Hash};
+
 use super::{wit::edgechains, APIConfig, JSApiSet};
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
+use quickjs_wasm_rs::to_qjs_value;
 
 pub(super) struct Jsonnet;
 
@@ -7,7 +10,6 @@ impl JSApiSet for Jsonnet {
     fn register(&self, runtime: &javy::Runtime, _config: &APIConfig) -> anyhow::Result<()> {
         let context = runtime.context();
         let global = context.global_object()?;
-
         global.set_property(
             "__jsonnet_make",
             context.wrap_callback(jsonnet_make_closure())?,
@@ -23,6 +25,15 @@ impl JSApiSet for Jsonnet {
         global.set_property(
             "__jsonnet_evaluate_file",
             context.wrap_callback(jsonnet_evaluate_file_closure())?,
+        )?;
+        let jsonnet_func_map = JSValue::Object(HashMap::new());
+        global.set_property(
+            "__jsonnet_func_map",
+            to_qjs_value(context, &jsonnet_func_map)?,
+        )?;
+        global.set_property(
+            "__jsonnet_register_func",
+            context.wrap_callback(jsonnet_register_func_closure())?
         )?;
         global.set_property(
             "__jsonnet_destroy",
@@ -82,6 +93,21 @@ fn jsonnet_evaluate_file_closure(
         let path = path.as_str();
         let out = edgechains::jsonnet::jsonnet_evaluate_file(vm as u64, path);
         Ok(out.into())
+    }
+}
+
+fn jsonnet_register_func_closure(
+) -> impl FnMut(&JSContextRef, JSValueRef, &[JSValueRef]) -> anyhow::Result<JSValue> {
+    move |_ctx, _this, args| {
+        // check the number of arguments
+        if args.len() != 3 {
+            return Err(anyhow::anyhow!("Expected 3 arguments, got {}", args.len()));
+        }
+        let vm = args.get(0).unwrap().as_f64().unwrap();
+        let func_name = args.get(1).unwrap().to_string();
+        let args_num = args.get(2).unwrap().as_f64().unwrap();
+        edgechains::jsonnet::jsonnet_register_func(vm as u64, &func_name, args_num as u32);
+        Ok(JSValue::Undefined)
     }
 }
 

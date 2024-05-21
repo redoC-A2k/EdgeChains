@@ -64,6 +64,10 @@ if (!isArakoo) {
             return this.vm;
         }
 
+        #setFunc(name, func) {
+            __jsonnet_func_map[name] = func;
+        }
+
         evaluateSnippet(snippet) {
             let vm = this.#getVm();
             return __jsonnet_evaluate_snippet(vm, snippet);
@@ -79,6 +83,23 @@ if (!isArakoo) {
             let vm = this.#getVm();
             return __jsonnet_evaluate_file(vm, filename);
         }
+
+        javascriptCallback(name, func) {
+            let numOfArgs = func.length;
+            if (numOfArgs > 0) {
+                this.#setFunc(name, (args) => {
+                    let result = eval(func)(...JSON.parse(args));
+                    return result.toString();
+                });
+            } else {
+                this.#setFunc(name, () => {
+                    let result = eval(func)();
+                    return result;
+                });
+            }
+            __jsonnet_register_func(this.vm, name, numOfArgs);
+            return this;
+        }        
 
         destroy() { 
             let vm = this.#getVm();

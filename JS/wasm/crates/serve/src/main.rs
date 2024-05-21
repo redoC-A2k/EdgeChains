@@ -14,7 +14,8 @@ async fn main() -> Result<()> {
     let addr = format!("{}:{}", addr, port)
         .parse()
         .expect("Invalid address");
-    WorkerCtx::new(path)?.serve(addr).await?;
+    let worker_ctx = WorkerCtx::new(path)?;
+    worker_ctx.serve(addr).await?;
 
     Ok(())
 }
