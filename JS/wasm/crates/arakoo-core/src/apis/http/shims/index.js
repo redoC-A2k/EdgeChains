@@ -4,7 +4,7 @@ import _queryString from "query-string";
 import "fast-text-encoding"
 
 
-let encoder = new TextEncoder()
+// let encoder = new TextEncoder()
 let decoder = new TextDecoder()
 
 
@@ -166,11 +166,27 @@ class Headers {
 }
 
 class Request {
-    constructor(input) {
-        // console.log("In constructor of request input body len",input.body.byteLength);
-        this.url = input.uri;
+    // constructor(input) {
+    //     // console.log("In constructor of request input body len",input.body.byteLength);
+    //     this.url = input.uri;
+    //     this.method = input.method;
+    //     this.headers = new Headers(input.headers || {});
+    //     let bodyArray = new Uint8Array(input.body);
+    //     let bodyString = decoder.decode(bodyArray);
+    //     if (bodyString != undefined && bodyString.length > 0)
+    //         this.body = JSON.parse(bodyString);
+    //     this.params = input.params || {};
+    //     this.geo = input.geo || {};
+    // }
+
+    constructor(url, input) {
+        if (typeof url === "string") {
+            this.url = url
+        } else {
+            throw new Error("url in Request constructor is not a string")
+        }
+        this.headers = input.headers;
         this.method = input.method;
-        this.headers = new Headers(input.headers || {});
         let bodyArray = new Uint8Array(input.body);
         let bodyString = decoder.decode(bodyArray);
         if (bodyString != undefined && bodyString.length > 0)
@@ -327,7 +343,7 @@ function encodeBody(body) {
 }
 
 globalThis.requestToEvent = (inputReq) => {
-    const request = new Request(inputReq);
+    const request = new Request(inputReq.uri, inputReq);
     const event = {
         request,
         response: {},
@@ -341,6 +357,17 @@ globalThis.requestToEvent = (inputReq) => {
 }
 
 function fetch(uri, options) {
+    console.log("constructor name of uri ", uri.constructor.name);
+    console.log("uri is ", JSON.stringify(uri))
+    if (uri.constructor.name == "Request") {
+        console.log("uri is instance of Request")
+        options = {}
+        options.headers = uri.headers;
+        options.method = uri.method;
+        options.params = uri.params;
+        options.geo = uri.geo;
+        uri = uri.url;
+    }
     console.log("In fetch function", uri, options)
     let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
     const { status, headers, body } = __internal_http_send({

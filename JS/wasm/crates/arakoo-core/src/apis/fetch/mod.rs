@@ -2,17 +2,19 @@ use anyhow::{anyhow, Result};
 use http::{request, HeaderName, HeaderValue};
 use serde_bytes::ByteBuf;
 // use crate::{types::{HttpRequest, HttpResponse}, JSApiSet};
+use super::types::arakoo_http;
+use super::wit;
+use super::{
+    types::{HttpRequest, HttpResponse},
+    APIConfig, JSApiSet,
+};
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
 use quickjs_wasm_rs::{from_qjs_value, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use super::{types::{HttpRequest, HttpResponse}, APIConfig, JSApiSet};
-use super::types::arakoo_http;
-use super::wit;
 use std::str;
 
 mod outbound_http;
-
 
 pub(super) struct Fetch;
 
@@ -28,17 +30,35 @@ impl JSApiSet for Fetch {
                 },
             )?,
         )?;
+        // global
+        //     .set_property(
+        //         "setTimeout",
+        //         context
+        //             .wrap_callback(set_timeout_api())
+        //             .expect("unable to get result"),
+        //     )
+        //     .expect("unable to set property");
 
         Ok(())
     }
 }
 
-fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
+
+
+fn send_http_request(
+    context: &JSContextRef,
+    _this: &JSValueRef,
+    args: &[JSValueRef],
+) -> Result<JSValue> {
     match args {
         [request] => {
-            println!("Request recieved in send_http_request: {:?}", from_qjs_value(*request).unwrap());
+            println!(
+                "Request recieved in send_http_request: {:?}",
+                from_qjs_value(*request).unwrap()
+            );
             let deserializer = &mut Deserializer::from(request.clone());
-            let request = HttpRequest::deserialize(deserializer).expect("Unable to deserialize request");
+            let request =
+                HttpRequest::deserialize(deserializer).expect("Unable to deserialize request");
 
             let mut builder = request::Builder::new()
                 .method(request.method.deref())
@@ -47,17 +67,19 @@ fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValue
             if let Some(headers) = builder.headers_mut() {
                 for (key, value) in &request.headers {
                     headers.insert(
-                        HeaderName::from_bytes(key.as_bytes()).expect("Unable to convert key to HeaderName"),
-                        HeaderValue::from_bytes(value.as_bytes()).expect("Unable to convert value to HeaderValue"),
+                        HeaderName::from_bytes(key.as_bytes())
+                            .expect("Unable to convert key to HeaderName"),
+                        HeaderValue::from_bytes(value.as_bytes())
+                            .expect("Unable to convert value to HeaderValue"),
                     );
                 }
             }
 
-            let outbound_request = builder.body(request.body.map(|buffer| buffer.into_vec().into())).expect("Unable to build request body");
+            let outbound_request = builder
+                .body(request.body.map(|buffer| buffer.into_vec().into()))
+                .expect("Unable to build request body");
             println!("outbound_request in wrap_callback: {:?}", outbound_request);
-            let response = outbound_http::send_request(
-                outbound_request
-            )?;
+            let response = outbound_http::send_request(outbound_request)?;
             println!("outbound_response in wrap_callback: {:?}", response);
 
             let response = HttpResponse {
@@ -72,10 +94,15 @@ fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValue
                         ))
                     })
                     .collect::<Result<_>>()?,
-                body: response.clone()
+                body: response
+                    .clone()
                     .into_body()
                     .map(|bytes| ByteBuf::from(bytes.deref())),
-                status_text: response.status().canonical_reason().unwrap_or("").to_owned(),
+                status_text: response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("")
+                    .to_owned(),
             };
 
             let mut serializer = Serializer::from_context(context)?;
@@ -86,4 +113,3 @@ fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValue
         _ => Err(anyhow!("expected 1 argument, got {}", args.len())),
     }
 }
-

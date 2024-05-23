@@ -5,7 +5,7 @@ use javy::{
     quickjs::{JSContextRef, JSValue, JSValueRef},
     Runtime,
 };
-use quickjs_wasm_rs::from_qjs_value;
+use quickjs_wasm_rs::{from_qjs_value, Exception};
 
 use super::{APIConfig, JSApiSet};
 
@@ -59,21 +59,31 @@ where
         // will invoke a hostcall.
         let mut log_line = String::new();
         for (i, arg) in args.iter().enumerate() {
-            let val: JSValue = from_qjs_value(*arg)?;
-            if i != 0 {
-                log_line.push(' ');
-            }
-            if !arg.is_undefined() {
-                let proto = arg.get_property("__proto__").unwrap().to_string();
-                if proto.contains("rror") {
-                    log_line.push_str(&format!("__proto__ is {} Error in js evaluation : {:?}", proto,val));
+            if arg.is_exception() {
+                let exception =
+                    Exception::from(*arg).expect("Unable to convert jsvaluleref to exception");
+                let err = exception.into_error();
+                log_line = format!("Exception : {:?}", err);
+            } else {
+                let val: JSValue = from_qjs_value(*arg)?;
+                if i != 0 {
+                    log_line.push(' ');
+                }
+                if !arg.is_undefined() {
+                    let proto = arg.get_property("__proto__").unwrap().to_string();
+                    if proto.contains("rror") {
+                        log_line.push_str(&format!(
+                            "__proto__ is {} Error in js evaluation : {:?}",
+                            proto, val
+                        ));
+                    } else {
+                        let line: String = log_js_value(&val);
+                        log_line.push_str(&line);
+                    }
                 } else {
                     let line: String = log_js_value(&val);
                     log_line.push_str(&line);
                 }
-            } else {
-                let line: String = log_js_value(&val);
-                log_line.push_str(&line);
             }
         }
 
@@ -94,7 +104,7 @@ fn log_js_value(arg: &JSValue) -> String {
                 .map(|(k, v)| format!("{}: {}", k, log_js_value(v)))
                 .collect::<Vec<String>>()
                 .join(", ");
-            format!("Object = {{ {} }}", flatten_obj)
+            format!("Object = {{ {:?} }}", flatten_obj)
         }
         JSValue::Null => "null".to_string(),
         JSValue::Undefined => "undefined".to_string(),
@@ -105,13 +115,16 @@ fn log_js_value(arg: &JSValue) -> String {
                 .map(|v| log_js_value(v))
                 .collect::<Vec<String>>()
                 .join(", ");
-            format!("Array = [{}]", flatten_vec)
+            format!("Array = [{:?}]", flatten_vec)
         }
-        JSValue::ArrayBuffer(buff) => buff
-            .iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<String>>()
-            .join(", "),
+        JSValue::ArrayBuffer(buff) => {
+            let buffer = buff
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("ArrayBuffer = [{:?}]", buffer)
+        }
     }
 }
 

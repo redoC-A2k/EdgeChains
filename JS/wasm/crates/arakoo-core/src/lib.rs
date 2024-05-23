@@ -202,6 +202,7 @@ impl wit::inbound_http::Guest for Guest {
 
         // let response = to_qjs_value(context, &RESPONSE.lock().unwrap().take().unwrap()).unwrap();
         let response = RESPONSE.lock().unwrap().take().unwrap();
+        // println!("Response {:?}",response);
 
         // let deserializer = &mut Deserializer::from(response);
         // let response = HttpResponse::deserialize(deserializer).unwrap();
