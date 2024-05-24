@@ -62,6 +62,7 @@ mod text_encoding;
 mod pdfparse;
 mod fetch;
 mod jsonnet;
+mod axios;
 pub(crate) trait JSApiSet {
     fn register(&self, runtime: &Runtime, config: &APIConfig) -> Result<()>;
 }
@@ -86,5 +87,6 @@ pub fn add_to_runtime(runtime: &Runtime, config: APIConfig) -> Result<()> {
     jsonnet::Jsonnet.register(runtime, &config)?;
     pdfparse::PDFPARSER.register(runtime, &config)?;
     fetch::Fetch.register(runtime, &config)?;
+    axios::Axios.register(runtime, &config)?;
     Ok(())
 }

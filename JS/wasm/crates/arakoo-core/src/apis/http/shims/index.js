@@ -3,6 +3,7 @@ import Url from "url-parse";
 import _queryString from "query-string";
 import "fast-text-encoding"
 
+let __require_map = {}
 
 // let encoder = new TextEncoder()
 let decoder = new TextDecoder()
@@ -331,6 +332,7 @@ class Response {
 //     let response = await fetch_internal(resource, options);
 //     return Promise.resolve(new Response(response.body, response));
 // };
+
 
 function encodeBody(body) {
     if (typeof (body) == "string") {

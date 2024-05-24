@@ -9,10 +9,12 @@ use super::{
     APIConfig, JSApiSet,
 };
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
-use quickjs_wasm_rs::{from_qjs_value, Deserializer, Serializer};
+use quickjs_wasm_rs::{from_qjs_value, to_qjs_value, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use std::str;
+use std::sync::mpsc;
+use std::time::Duration;
+use std::{str, thread};
 
 mod outbound_http;
 
@@ -30,19 +32,10 @@ impl JSApiSet for Fetch {
                 },
             )?,
         )?;
-        // global
-        //     .set_property(
-        //         "setTimeout",
-        //         context
-        //             .wrap_callback(set_timeout_api())
-        //             .expect("unable to get result"),
-        //     )
-        //     .expect("unable to set property");
 
         Ok(())
     }
 }
-
 
 
 fn send_http_request(
