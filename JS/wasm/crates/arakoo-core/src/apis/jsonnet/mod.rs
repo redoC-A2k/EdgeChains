@@ -1,4 +1,5 @@
 use super::{wit::edgechains, APIConfig, JSApiSet};
+use arakoo_jsonnet;
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
 
 pub(super) struct Jsonnet;
@@ -34,7 +35,10 @@ impl JSApiSet for Jsonnet {
 
 fn jsonnet_make_closure(
 ) -> impl FnMut(&JSContextRef, JSValueRef, &[JSValueRef]) -> anyhow::Result<JSValue> {
-    move |_ctx, _this, args| Ok(JSValue::Float(edgechains::jsonnet::jsonnet_make() as f64))
+    move |_ctx, _this, args| {
+        let ptr = arakoo_jsonnet::jsonnet_make();
+        Ok(JSValue::from(ptr as u64 as f64))
+    }
 }
 
 fn jsonnet_ext_string_closure(
@@ -50,7 +54,9 @@ fn jsonnet_ext_string_closure(
         let vm = args.get(0).unwrap().as_f64().unwrap();
         let key = args.get(1).unwrap().to_string();
         let value = args.get(2).unwrap().to_string();
-        edgechains::jsonnet::jsonnet_ext_string(vm as u64, &key, &value);
+        // edgechains::jsonnet::jsonnet_ext_string(vm as u64, &key, &value);
+        let ptr = vm as u64;
+        arakoo_jsonnet::jsonnet_ext_string(ptr as *mut arakoo_jsonnet::VM, &key, &value);
         Ok(JSValue::Undefined)
     }
 }
@@ -65,7 +71,12 @@ fn jsonnet_evaluate_snippet_closure(
         let vm = args.get(0).unwrap().as_f64().unwrap();
         let code = args.get(1).unwrap().to_string();
         let code = code.as_str();
-        let out = edgechains::jsonnet::jsonnet_evaluate_snippet(vm as u64, "snippet", code);
+        // let out = edgechains::jsonnet::jsonnet_evaluate_snippet(vm as u64, "snippet", code);
+        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(
+            vm as u64 as *mut arakoo_jsonnet::VM,
+            "snippet",
+            code,
+        );
         Ok(out.into())
     }
 }

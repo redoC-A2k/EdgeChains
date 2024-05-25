@@ -27,6 +27,22 @@ app.get("/", (c) => {
     return c.json(JSON.parse(result));
 });
 
+app.get("/func", (c) => {
+    const code = `
+  local username = std.extVar('name');
+  local Person(name='Alice') = {
+    name: name,
+    welcome: 'Hello ' + name + '!',
+  };
+  {
+    person1: Person(username),
+    person2: Person('Bob'),
+    result : arakoo.native("greet")()
+  }`;
+    let result = jsonnet.extString("name", "ll").javascriptCallback("greet",greet).evaluateSnippet(code);
+    return c.json(JSON.parse(result));
+});
+
 app.get("/file", (c) => {
     try {
         let result = jsonnet
@@ -75,4 +91,5 @@ app.notFound((c) => {
     return c.text("404 not found", 404);
 });
 
-app.fire();
+// app.fire();
+globalThis._export = app;

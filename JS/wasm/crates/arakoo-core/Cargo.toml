@@ -24,3 +24,4 @@ bytes = { version = "1.6.0", features = ["serde"] }
 fastrand = "2.1.0"
 log = {version = "*"}
 env_logger = {version = "*"}
+arakoo-jsonnet ={ path = "../../../jsonnet"}
