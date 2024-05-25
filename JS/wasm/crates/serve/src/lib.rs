@@ -101,6 +101,7 @@ impl WorkerCtx {
             config
                 .debug_info(true)
                 .wasm_backtrace(true)
+                .wasm_threads(true)
                 .coredump_on_trap(true) // Enable core dumps on trap
                 .wasm_backtrace_details(WasmBacktraceDetails::Enable);
         }
@@ -189,6 +190,7 @@ impl WorkerCtx {
         bindings::io::error::add_to_linker(&mut linker, |x| x).expect("Unable to add io error");
         // bindings::sync::io::streams::add_to_linker(&mut linker, |x| x)
         //     .expect("Unable to add io streams");
+        bindings::io::poll::add_to_linker(&mut linker, |x| x).expect("Unable to add io poll");
         bindings::io::streams::add_to_linker(&mut linker, |x| x).expect("Unable to add io streams");
         bindings::cli::stdin::add_to_linker(&mut linker, |x| x).expect("Unable to add cli stdin");
         bindings::cli::stdout::add_to_linker(&mut linker, |x| x).expect("Unable to add cli stdout");

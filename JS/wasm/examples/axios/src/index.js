@@ -10,12 +10,29 @@ app.get("/", (c) => {
 function writeOutput(output) {
     const encodedOutput = new TextEncoder().encode(JSON.stringify(output));
     const buffer = new Uint8Array(encodedOutput);
-    writeFileSync(STDIO.Stdout,buffer)
+    writeFileSync(STDIO.Stdout, buffer)
 }
 
-app.get("/axios", async (c) => {
+app.get("/get", async (c) => {
     console.log("In axios")
-    let result = await axios.get("https://jsonplaceholder.typicode.com/todos/1");
+    let result = await axios.get("https://dummy.restapiexample.com/api/v1/employee/1");
+    let json = result.data;
+    return c.json(json);
+})
+
+app.get("/post", async (c) => {
+    console.log("post")
+    // let result = await axios.post("https://dummy.restapiexample.com/api/v1/create", {
+    //     name: "test",
+    //     salary: "123",
+    //     age: "23"
+    // });
+    // let json = result.data;
+    let result = await axios.post("https://jsonplaceholder.typicode.com/posts", {
+        title: 'foo',
+        body: 'bar',
+        userId: 1,
+    });
     let json = result.data;
     return c.json(json);
 })

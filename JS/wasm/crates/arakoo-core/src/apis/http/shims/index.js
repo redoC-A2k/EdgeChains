@@ -181,6 +181,7 @@ class Request {
     // }
 
     constructor(url, input) {
+        console.log("In constructor of request , url = ",url, " input = ",input);
         if (typeof url === "string") {
             this.url = url
         } else {
@@ -188,10 +189,7 @@ class Request {
         }
         this.headers = input.headers;
         this.method = input.method;
-        let bodyArray = new Uint8Array(input.body);
-        let bodyString = decoder.decode(bodyArray);
-        if (bodyString != undefined && bodyString.length > 0)
-            this.body = JSON.parse(bodyString);
+        this.body = input.body;
         this.params = input.params || {};
         this.geo = input.geo || {};
     }
@@ -368,6 +366,7 @@ function fetch(uri, options) {
         options.method = uri.method;
         options.params = uri.params;
         options.geo = uri.geo;
+        options.body = uri.body;
         uri = uri.url;
     }
     console.log("In fetch function", uri, options)
