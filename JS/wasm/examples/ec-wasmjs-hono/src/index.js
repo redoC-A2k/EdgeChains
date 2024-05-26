@@ -6,6 +6,11 @@ import Jsonnet from "@arakoodev/jsonnet";
 let jsonnet = new Jsonnet();
 
 const app = new Hono();
+
+function greet() {
+  return "Hello from JS";
+}
+
 const env = {};
 
 app.get("/hello", (c) => {
@@ -28,7 +33,7 @@ app.get("/", (c) => {
 });
 
 app.get("/func", (c) => {
-    const code = `
+  const code = `
   local username = std.extVar('name');
   local Person(name='Alice') = {
     name: name,
@@ -39,8 +44,28 @@ app.get("/func", (c) => {
     person2: Person('Bob'),
     result : arakoo.native("greet")()
   }`;
-    let result = jsonnet.extString("name", "ll").javascriptCallback("greet",greet).evaluateSnippet(code);
-    return c.json(JSON.parse(result));
+  let result = jsonnet.extString("name", "ll").javascriptCallback("greet", greet).evaluateSnippet(code);
+  return c.json(JSON.parse(result));
+});
+
+app.get("/add", (c) => {
+  function add(arg1, arg2, arg3) {
+    console.log("Args recieved: ", arg1, arg2, arg3);
+    return arg1 + arg2 + arg3;
+  }
+  const code = `
+  local username = std.extVar('name');
+  local Person(name='Alice') = {
+    name: name,
+    welcome: 'Hello ' + name + '!',
+  };
+  {
+    person1: Person(username),
+    person2: Person('Bob'),
+    result : arakoo.native("add")(1,2,3)
+  }`;
+  let result = jsonnet.extString("name", "ll").javascriptCallback("add", add).evaluateSnippet(code);
+  return c.json(JSON.parse(result));
 });
 
 app.get("/file", (c) => {
