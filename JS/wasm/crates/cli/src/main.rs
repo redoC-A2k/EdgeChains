@@ -9,6 +9,7 @@ use std::io::Read;
 use std::process::Command;
 use std::{env, fs::File, path::PathBuf};
 use wizer::Wizer;
+use wit_component::ComponentEncoder;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -62,6 +63,14 @@ fn main() -> Result<()> {
         } else {
             bail!("Unable to read wasm binary for wasm-opt optimizations");
         }
+
+        println!("Adapting module for component model");
+        let adapter_path = concat!(env!("OUT_DIR"), "/adapter.wasm");
+        wasm = ComponentEncoder::default()
+        .validate(true)
+        .module(&wasm)?
+        .adapter("wasi_snapshot_preview1", &fs::read(adapter_path).expect("Unable to read adapter"))?
+        .encode()?;
 
         fs::write(&opts.output, wasm)?;
         return Ok(());

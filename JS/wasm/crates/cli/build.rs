@@ -7,6 +7,11 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 fn main() -> Result<()> {
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+    // copy wasi_snapshot_preview1.reactor.wasm file from current directory to OUT_DIR
+    fs::copy("wasi_snapshot_preview1.reactor.wasm", out_dir.join("adapter.wasm"))?;
+    println!("cargo:rerun-if-changed=wasi_snapshot_preview1.reactor.wasm");
+    println!("cargo:warning=copied wasi_snapshot_preview1.reactor.wasm to adapter.wasm in OUT_DIR");
     if let Ok("cargo-clippy") = env::var("CARGO_CFG_FEATURE").as_ref().map(String::as_str) {
         stub_javy_core_for_clippy()
     } else {

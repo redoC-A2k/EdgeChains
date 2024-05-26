@@ -13,8 +13,9 @@ path = "src/main.rs"
 [dependencies]
 wizer = { workspace = true }
 anyhow = { workspace = true }
-clap = { version = "4.1.4", features = [ "derive" ] }
+clap = { version = "4.1.4", features = ["derive"] }
 binaryen = { git = "https://github.com/pepyakin/binaryen-rs" }
+wit-component = { version = "0.208.1" }
 
 [build-dependencies]
 anyhow = "1.0.79"
