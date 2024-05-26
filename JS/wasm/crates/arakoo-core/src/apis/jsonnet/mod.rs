@@ -51,7 +51,7 @@ fn jsonnet_ext_string_closure(
                 args.len() - 1
             ));
         }
-        let vm = args.get(0).unwrap().as_f64().unwrap();
+        let vm = args.get(0).unwrap().as_f64()?;
         let key = args.get(1).unwrap().to_string();
         let value = args.get(2).unwrap().to_string();
         // edgechains::jsonnet::jsonnet_ext_string(vm as u64, &key, &value);
@@ -68,7 +68,7 @@ fn jsonnet_evaluate_snippet_closure(
         if args.len() != 2 {
             return Err(anyhow::anyhow!("Expected 2 arguments, got {}", args.len()));
         }
-        let vm = args.get(0).unwrap().as_f64().unwrap();
+        let vm = args.get(0).unwrap().as_f64()?;
         let code = args.get(1).unwrap().to_string();
         let code = code.as_str();
         // let out = edgechains::jsonnet::jsonnet_evaluate_snippet(vm as u64, "snippet", code);
@@ -88,10 +88,14 @@ fn jsonnet_evaluate_file_closure(
         if args.len() != 2 {
             return Err(anyhow::anyhow!("Expected 2 arguments, got {}", args.len()));
         }
-        let vm = args.get(0).unwrap().as_f64().unwrap();
+        let vm = args.get(0).unwrap().as_f64()?;
         let path = args.get(1).unwrap().to_string();
-        let path = path.as_str();
-        let out = edgechains::jsonnet::jsonnet_evaluate_file(vm as u64, path);
+        let code = edgechains::utils::read_file(path.as_str());
+        let out = arakoo_jsonnet::jsonnet_evaluate_snippet(
+            vm as u64 as *mut arakoo_jsonnet::VM,
+            "snippet",
+            &code,
+        );
         Ok(out.into())
     }
 }
@@ -103,8 +107,8 @@ fn jsonnet_destroy_closure(
         if args.len() != 1 {
             return Err(anyhow::anyhow!("Expected 1 arguments, got {}", args.len()));
         }
-        let vm = args.get(0).unwrap().as_f64().unwrap();
-        edgechains::jsonnet::jsonnet_destroy(vm as u64);
+        let vm = args.get(0).unwrap().as_f64()?;
+        arakoo_jsonnet::jsonnet_destroy(vm as u64 as *mut arakoo_jsonnet::VM);
         Ok(JSValue::Undefined)
     }
 }
