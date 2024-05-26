@@ -29,18 +29,17 @@ pub mod wit {
 
     use super::Guest;
     export!(Guest);
-    
+
+    pub use self::arakoo::edgechains;
     pub use self::arakoo::edgechains::http_types::{Method, Request, Response};
     pub use self::exports::arakoo::edgechains::inbound_http;
-    pub use self::arakoo::edgechains;
 }
-
 
 struct Guest;
 
 // mod execution;
-mod runtime;
 mod apis;
+mod runtime;
 
 // const FUNCTION_MODULE_NAME: &str = "function.mjs";
 
@@ -50,40 +49,40 @@ static CONTEXT: OnceCell<SendWrapper<&JSContextRef>> = OnceCell::new();
 static HANDLER: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
 static GLOBAL: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
 static mut RUNTIME_INSTANCE: Option<Runtime> = None;
-static ON_RESOLVE: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
-static ON_REJECT: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
-static RESPONSE: Mutex<Option<JSValue>> = Mutex::new(None);
-static EXCEPTION: Mutex<Option<JSValue>> = Mutex::new(None);
+// static ON_RESOLVE: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
+// static ON_REJECT: OnceCell<SendWrapper<JSValueRef>> = OnceCell::new();
+// static RESPONSE: Mutex<Option<JSValue>> = Mutex::new(None);
+// static EXCEPTION: Mutex<Option<JSValue>> = Mutex::new(None);
 
-fn on_resolve(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
-    // (*args).clone_into(&mut cloned_args);
-    let mut qjs_value = Option::None;
-    if args.len() > 0 {
-        for arg in args {
-            qjs_value = Some(from_qjs_value(*arg).unwrap());
-            // println!("Arg resolve: {:?}", qjs_value.as_ref().unwrap());
-        }
-        RESPONSE.lock().unwrap().replace(qjs_value.unwrap());
-        Ok(JSValue::Undefined)
-    } else {
-        Err(anyhow!("expected 1 argument, got {}", args.len()))
-    }
-}
+// fn on_resolve(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
+//     // (*args).clone_into(&mut cloned_args);
+//     let mut qjs_value = Option::None;
+//     if args.len() > 0 {
+//         for arg in args {
+//             qjs_value = Some(from_qjs_value(*arg).unwrap());
+//             // println!("Arg resolve: {:?}", qjs_value.as_ref().unwrap());
+//         }
+//         RESPONSE.lock().unwrap().replace(qjs_value.unwrap());
+//         Ok(JSValue::Undefined)
+//     } else {
+//         Err(anyhow!("expected 1 argument, got {}", args.len()))
+//     }
+// }
 
-fn on_reject(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
-    // (*args).clone_into(&mut cloned_args);
-    let mut qjs_value = Option::None;
-    if (args.len() > 0) {
-        for arg in args {
-            qjs_value = Some(from_qjs_value(*arg).unwrap());
-            println!("Arg reject : {:?}", qjs_value.as_ref().unwrap());
-        }
-        EXCEPTION.lock().unwrap().replace(qjs_value.unwrap());
-        Ok(JSValue::Undefined)
-    } else {
-        Err(anyhow!("expected 1 argument, got {}", args.len()))
-    }
-}
+// fn on_reject(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
+//     // (*args).clone_into(&mut cloned_args);
+//     let mut qjs_value = Option::None;
+//     if (args.len() > 0) {
+//         for arg in args {
+//             qjs_value = Some(from_qjs_value(*arg).unwrap());
+//             println!("Arg reject : {:?}", qjs_value.as_ref().unwrap());
+//         }
+//         EXCEPTION.lock().unwrap().replace(qjs_value.unwrap());
+//         Ok(JSValue::Undefined)
+//     } else {
+//         Err(anyhow!("expected 1 argument, got {}", args.len()))
+//     }
+// }
 
 /// Used by Wizer to preinitialize the module
 #[export_name = "wizer.initialize"]
@@ -116,14 +115,16 @@ pub extern "C" fn init() {
         .expect("Unable to get global object");
     GLOBAL.set(SendWrapper::new(global)).unwrap();
 
-    let hono = global.get_property("_export").unwrap();
-    let handle_event = hono.get_property("fetch").expect("Hono app not exported");
-    HANDLER.set(SendWrapper::new(handle_event)).unwrap();
+    // let hono = global.get_property("_export").unwrap();
+    let entrypoint = global
+        .get_property("entrypoint")
+        .expect("Entrypoint not found");
+    HANDLER.set(SendWrapper::new(entrypoint)).unwrap();
 
-    let on_resolve = context.wrap_callback(on_resolve).unwrap();
-    ON_RESOLVE.set(SendWrapper::new(on_resolve)).unwrap();
-    let on_reject = context.wrap_callback(on_reject).unwrap();
-    ON_REJECT.set(SendWrapper::new(on_reject)).unwrap();
+    // let on_resolve = context.wrap_callback(on_resolve).unwrap();
+    // ON_RESOLVE.set(SendWrapper::new(on_resolve)).unwrap();
+    // let on_reject = context.wrap_callback(on_reject).unwrap();
+    // ON_REJECT.set(SendWrapper::new(on_reject)).unwrap();
 }
 
 impl wit::inbound_http::Guest for Guest {
@@ -132,7 +133,7 @@ impl wit::inbound_http::Guest for Guest {
         let context = **CONTEXT.get().unwrap();
         let mut serializer =
             javy::quickjs::Serializer::from_context(context).expect("Unable to create serializer");
-        let handler = **HANDLER.get().unwrap();
+        // let handler = **HANDLER.get().unwrap();
         let request = HttpRequest {
             method: match req.method {
                 wit::Method::Get => "GET".to_string(),
@@ -165,43 +166,50 @@ impl wit::inbound_http::Guest for Guest {
             .expect("unable to serialize httprequest");
         let request_value = serializer.value;
         // println!("body of httpRequest : {:?}", from_qjs_value(request_value).unwrap());
-        let global =  GLOBAL.get().unwrap() ;
-        let request_to_event = global
-            .get_property("requestToEvent")
-            .expect("Unable to get requestToEvent");
-        let event = request_to_event
+        let global = GLOBAL.get().unwrap();
+        // let entrypoint = global
+        //     .get_property("entrypoint")
+        //     .expect("Unable to get entrypoint");
+        let entrypoint = **HANDLER.get().unwrap();
+        entrypoint
             .call(global, &[request_value])
             .expect("Unable to call requestToEvent");
-        let event_request = event
-            .get_property("request")
-            .expect("Unable to get request from event");
-        let promise = handler
-            .call(global, &[event_request, event])
-            .expect("Unable to call handler");
+        // let event_request = event
+        //     .get_property("request")
+        //     .expect("Unable to get request from event");
+        // let promise = handler
+        //     .call(global, &[event_request, event])
+        //     .expect("Unable to call handler");
 
-        let on_resolve =  ON_RESOLVE.get().unwrap().clone() ;
-        let on_reject =  ON_REJECT.get().unwrap().clone() ;
-        let then_func = promise.get_property("then").unwrap();
-        if then_func.is_function() {
-            then_func
-                .call(
-                    &promise,
-                    &[on_resolve.deref().clone(), on_reject.deref().clone()],
-                )
-                .unwrap();
-        } else {
-            RESPONSE
-                .lock()
-                .unwrap()
-                .replace(from_qjs_value(promise).unwrap());
-        }
+        // let on_resolve =  ON_RESOLVE.get().unwrap().clone() ;
+        // let on_reject =  ON_REJECT.get().unwrap().clone() ;
+        // let then_func = promise.get_property("then").unwrap();
+        // if then_func.is_function() {
+        //     then_func
+        //         .call(
+        //             &promise,
+        //             &[on_resolve.deref().clone(), on_reject.deref().clone()],
+        //         )
+        //         .unwrap();
+        // } else {
+        //     RESPONSE
+        //         .lock()
+        //         .unwrap()
+        //         .replace(from_qjs_value(promise).unwrap());
+        // }
 
         context
             .execute_pending()
             .expect("Unable to execute pending tasks");
 
+        let result = global.get_property("result").unwrap();
+        let error = global.get_property("error").unwrap();
+        let response = from_qjs_value(result).unwrap();
+        let error = from_qjs_value(error).unwrap();
+        println!("Result : {:?}", response);
+        println!("Error : {:?}", error);
         // let response = to_qjs_value(context, &RESPONSE.lock().unwrap().take().unwrap()).unwrap();
-        let response = RESPONSE.lock().unwrap().take().unwrap();
+        // let response = RESPONSE.lock().unwrap().take().unwrap();
 
         // let deserializer = &mut Deserializer::from(response);
         // let response = HttpResponse::deserialize(deserializer).unwrap();
@@ -212,13 +220,13 @@ impl wit::inbound_http::Guest for Guest {
             let status_text_ref = to_qjs_value(context, obj.get("statusText").unwrap()).unwrap();
             let status_text = status_text_ref.as_str().unwrap();
             let body_ref = to_qjs_value(context, obj.get("body").unwrap()).unwrap();
-            let headers = obj.get("headers").unwrap();
+            let headers_obj = obj.get("headers").unwrap();
             let mut headers_vec = Vec::new();
-            let headers_obj = match headers {
-                JSValue::Object(obj) => obj,
-                _ => panic!("Headers is not object {:?}", headers),
-            };
-            if let JSValue::Object(headers_obj) = headers_obj.get("headers").unwrap() {
+            // let headers_obj = match headers {
+            //     JSValue::Object(obj) => obj,
+            //     _ => panic!("Headers is not object {:?}", headers),
+            // };
+            if let JSValue::Object(headers_obj) = headers_obj {
                 for (k, v) in headers_obj.iter() {
                     let key = k.clone();
                     let value = (*v).to_string();

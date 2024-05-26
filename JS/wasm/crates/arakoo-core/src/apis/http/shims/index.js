@@ -271,45 +271,49 @@ class Response {
         return this.body;
     }
 }
-// let handlerFunction;
-// globalThis.addEventListener = (_eventName, handler) => {
-//     handlerFunction = handler;
-// };
 
-// const requestToHandler = (input) => {
-//     const request = new Request(input);
-//     const event = {
-//         request,
-//         response: {},
-//         respondWith(res) {
-//             this.response = res;
-//         },
-//     };
+let handlerFunction;
+globalThis.addEventListener = (_eventName, handler) => {
+    handlerFunction = handler;
+};
 
-//     try {
-//         handlerFunction(event);
+const requestToHandler = (input) => {
+    const request = new Request(input);
+    console.log("Request recieved ", JSON.stringify(request));
+    const event = {
+        request,
+        response: {},
+        respondWith(res) {
+            console.log(res.constructor.name)
+            console.log("Res ", JSON.stringify(res))
+            this.response = res;
+        },
+    };
 
-//         Promise.resolve(event.response)
-//             .then((res) => {
-//                 console.log("res: ", res);
-//                 result = {
-//                     body: res.body,
-//                     headers: res.headers.headers,
-//                     status: res.status,
-//                     statusText: res.statusText,
-//                 };
-//             })
-//             .catch((err) => {
-//                 error = `err: \n${err}`;
-//             });
-//     } catch (err) {
-//         error = `err: ${err}\n${err.stack}`;
-//     }
-// };
+    try {
+        handlerFunction(event);
 
-// globalThis.entrypoint = requestToHandler;
-// globalThis.result = {};
-// globalThis.error = null;
+        Promise.resolve(event.response)
+            .then((res) => {
+                console.log("res: ", JSON.stringify(res));
+                result = {
+                    body: res.body,
+                    headers: res.headers.headers,
+                    status: res.status,
+                    statusText: res.statusText,
+                };
+            })
+            .catch((err) => {
+                error = `err: \n${err}`;
+            });
+    } catch (err) {
+        error = `err: ${err}\n${err.stack}`;
+    }
+};
+
+globalThis.entrypoint = requestToHandler;
+globalThis.result = {};
+globalThis.error = null;
 
 // globalThis.fetch = async (resource, options = { method: "GET" }) => {
 //     let response = await fetch_internal(resource, options);
@@ -326,19 +330,19 @@ function encodeBody(body) {
     }
 }
 
-globalThis.requestToEvent = (inputReq) => {
-    const request = new Request(inputReq);
-    const event = {
-        request,
-        response: {},
-        respondWith(res) {
-            console.log("Response recieved ", res);
-            this.response = res;
-        },
-    };
-    console.log("event: ", JSON.stringify(event))
-    return event;
-}
+// globalThis.requestToEvent = (inputReq) => {
+//     const request = new Request(inputReq);
+//     const event = {
+//         request,
+//         response: {},
+//         respondWith(res) {
+//             console.log("Response recieved ", res);
+//             this.response = res;
+//         },
+//     };
+//     console.log("event: ", JSON.stringify(event))
+//     return event;
+// }
 
 function fetch(uri, options) {
     console.log("In fetch function", uri, options)
