@@ -279,13 +279,12 @@ globalThis.addEventListener = (_eventName, handler) => {
 
 const requestToHandler = (input) => {
     const request = new Request(input);
-    console.log("Request recieved ", JSON.stringify(request));
+    console.debug("Request recieved ", JSON.stringify(request));
     const event = {
         request,
         response: {},
         respondWith(res) {
-            console.log(res.constructor.name)
-            console.log("Res ", JSON.stringify(res))
+            console.debug(res.constructor.name)
             this.response = res;
         },
     };
@@ -295,7 +294,7 @@ const requestToHandler = (input) => {
 
         Promise.resolve(event.response)
             .then((res) => {
-                console.log("res: ", JSON.stringify(res));
+                console.log("Successfully responded to request");
                 result = {
                     body: res.body,
                     headers: res.headers.headers,
@@ -345,7 +344,7 @@ function encodeBody(body) {
 // }
 
 function fetch(uri, options) {
-    console.log("In fetch function", uri, options)
+    console.debug("In fetch function", uri, options)
     let encodedBodyData = (options && options.body) ? encodeBody(options.body) : new Uint8Array().buffer
     const { status, headers, body } = __internal_http_send({
         method: (options && options.method) || "GET",
@@ -354,7 +353,7 @@ function fetch(uri, options) {
         body: encodedBodyData,
         params: (options && options.params) || {},
     })
-    console.log("Response from fetch", status, headers, body)
+    console.debug("Response from fetch", status, headers, body)
     let obj;
     try {
         obj = {

@@ -6,15 +6,14 @@ use javy::quickjs::JSContextRef;
 use javy::quickjs::JSValue;
 use javy::quickjs::JSValueRef;
 use javy::Runtime;
+use log::debug;
+use log::info;
 use once_cell::sync::OnceCell;
 use send_wrapper::SendWrapper;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io;
 use std::io::Read;
-use std::ops::Deref;
-use std::sync::Mutex;
-
 use serde_bytes::ByteBuf;
 
 use crate::apis::types::HttpRequest;
@@ -89,6 +88,7 @@ static mut RUNTIME_INSTANCE: Option<Runtime> = None;
 pub extern "C" fn init() {
     let mut contents = String::new();
     let res = io::stdin().read_to_string(&mut contents);
+    env_logger::init();
     match res {
         Ok(len) => println!("Read {} bytes", len),
         Err(err) => println!(
@@ -107,7 +107,7 @@ pub extern "C" fn init() {
     CONTEXT.set(SendWrapper::new(context)).unwrap();
     match context.eval_global("javascriptCode.js", &contents) {
         Ok(_) => (),
-        Err(err) => println!("Error in evaluating script function.js : {:?}", err),
+        Err(err) => panic!("Error in evaluating script function.js : {:?}", err),
     };
 
     let global = context
@@ -129,7 +129,7 @@ pub extern "C" fn init() {
 
 impl wit::inbound_http::Guest for Guest {
     fn handle_request(req: wit::Request) -> wit::Response {
-        println!("{:?}", req);
+        debug!("{:?}", req);
         let context = **CONTEXT.get().unwrap();
         let mut serializer =
             javy::quickjs::Serializer::from_context(context).expect("Unable to create serializer");
@@ -206,8 +206,8 @@ impl wit::inbound_http::Guest for Guest {
         let error = global.get_property("error").unwrap();
         let response = from_qjs_value(result).unwrap();
         let error = from_qjs_value(error).unwrap();
-        println!("Result : {:?}", response);
-        println!("Error : {:?}", error);
+        debug!("Result : {:?}", response);
+        debug!("Error : {:?}", error);
         // let response = to_qjs_value(context, &RESPONSE.lock().unwrap().take().unwrap()).unwrap();
         // let response = RESPONSE.lock().unwrap().take().unwrap();
 

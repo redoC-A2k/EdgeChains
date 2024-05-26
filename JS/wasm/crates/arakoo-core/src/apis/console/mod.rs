@@ -1,11 +1,12 @@
-use std::io::Write;
+use std::{env, io::Write};
 
 use anyhow::Result;
 use javy::{
     quickjs::{JSContextRef, JSValue, JSValueRef},
     Runtime,
 };
-use quickjs_wasm_rs::from_qjs_value;
+use log::debug;
+use quickjs_wasm_rs::{from_qjs_value, to_qjs_value};
 
 use super::{APIConfig, JSApiSet};
 
@@ -24,11 +25,20 @@ impl Console {
 
 impl JSApiSet for Console {
     fn register(&self, runtime: &Runtime, config: &APIConfig) -> Result<()> {
-        register_console(
+        let result = register_console(
             runtime.context(),
             config.console.log_stream.to_stream(),
             config.console.error_stream.to_stream(),
-        )
+        );
+        let context = runtime.context();
+        context.eval_global("console.js", include_str!("index.js"))?;
+        let global = context.global_object()?;
+        let env = global.get_property("process")?.get_property("env")?;
+        debug!("env: {:?}", env::vars().collect::<Vec<_>>());
+        for (key, value) in env::vars() {
+            env.set_property(key, to_qjs_value(context, &JSValue::String(value)).unwrap())?;
+        }
+        result
     }
 }
 
@@ -66,7 +76,10 @@ where
             if !arg.is_undefined() {
                 let proto = arg.get_property("__proto__").unwrap().to_string();
                 if proto.contains("rror") {
-                    log_line.push_str(&format!("__proto__ is {} Error in js evaluation : {:?}", proto,val));
+                    log_line.push_str(&format!(
+                        "__proto__ is {} Error in js evaluation : {:?}",
+                        proto, val
+                    ));
                 } else {
                     let line: String = log_js_value(&val);
                     log_line.push_str(&line);

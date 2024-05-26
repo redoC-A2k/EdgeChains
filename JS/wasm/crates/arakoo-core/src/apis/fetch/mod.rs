@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use http::{request, HeaderName, HeaderValue};
+use log::debug;
 use serde_bytes::ByteBuf;
 // use crate::{types::{HttpRequest, HttpResponse}, JSApiSet};
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
@@ -36,7 +37,7 @@ impl JSApiSet for Fetch {
 fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
     match args {
         [request] => {
-            println!("Request recieved in send_http_request: {:?}", from_qjs_value(*request).unwrap());
+            debug!("Request recieved in send_http_request: {:?}", from_qjs_value(*request).unwrap());
             let deserializer = &mut Deserializer::from(request.clone());
             let request = HttpRequest::deserialize(deserializer).expect("Unable to deserialize request");
 
@@ -54,11 +55,11 @@ fn send_http_request(context: &JSContextRef, _this: &JSValueRef, args: &[JSValue
             }
 
             let outbound_request = builder.body(request.body.map(|buffer| buffer.into_vec().into())).expect("Unable to build request body");
-            println!("outbound_request in wrap_callback: {:?}", outbound_request);
+            debug!("outbound_request in wrap_callback: {:?}", outbound_request);
             let response = outbound_http::send_request(
                 outbound_request
             )?;
-            println!("outbound_response in wrap_callback: {:?}", response);
+            debug!("outbound_response in wrap_callback: {:?}", response);
 
             let response = HttpResponse {
                 status: response.status().as_u16(),

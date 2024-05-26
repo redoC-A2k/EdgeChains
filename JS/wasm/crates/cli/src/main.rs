@@ -8,8 +8,8 @@ use std::fs;
 use std::io::Read;
 use std::process::Command;
 use std::{env, fs::File, path::PathBuf};
-use wizer::Wizer;
 use wit_component::ComponentEncoder;
+use wizer::Wizer;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -26,24 +26,31 @@ pub struct Options {
 
 fn main() -> Result<()> {
     let opts = Options::parse();
-
     if env::var("EDECHAINS_JS_WIZEN").eq(&Ok("1".into())) {
         env::remove_var("EDECHAINS_JS_WIZEN");
+        // remove unnecessary env var except RUST_LOG
+        for (key, _) in env::vars() {
+            if key.eq("RUST_LOG") || key.eq("JS_LOG") {
+            } else {
+                env::remove_var(&key);
+            }
+        }
 
         println!("\nStarting to build arakoo compatible module");
-        let wasm: Vec<u8> = if let Ok(wasm_bytes) = std::fs::read(concat!(env!("OUT_DIR"), "/engine.wasm")) {
-            wasm_bytes
-        } else {
-            // Provide a fallback wasm binary if the file is not found
-            panic!("Engine wasm not found");
-        };
+        let wasm: Vec<u8> =
+            if let Ok(wasm_bytes) = std::fs::read(concat!(env!("OUT_DIR"), "/engine.wasm")) {
+                wasm_bytes
+            } else {
+                // Provide a fallback wasm binary if the file is not found
+                panic!("Engine wasm not found");
+            };
 
         println!("Preinitializing using Wizer");
-
         let mut wasm = Wizer::new()
             .allow_wasi(true)?
             .inherit_stdio(true)
             .wasm_bulk_memory(true)
+            .inherit_env(true)
             .run(wasm.as_slice())?;
 
         let codegen_config = CodegenConfig {
@@ -67,10 +74,13 @@ fn main() -> Result<()> {
         println!("Adapting module for component model");
         let adapter_path = concat!(env!("OUT_DIR"), "/adapter.wasm");
         wasm = ComponentEncoder::default()
-        .validate(true)
-        .module(&wasm)?
-        .adapter("wasi_snapshot_preview1", &fs::read(adapter_path).expect("Unable to read adapter"))?
-        .encode()?;
+            .validate(true)
+            .module(&wasm)?
+            .adapter(
+                "wasi_snapshot_preview1",
+                &fs::read(adapter_path).expect("Unable to read adapter"),
+            )?
+            .encode()?;
 
         fs::write(&opts.output, wasm)?;
         return Ok(());
