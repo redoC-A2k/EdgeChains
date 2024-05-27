@@ -3,18 +3,16 @@ use std::collections::HashMap;
 use crate::apis::jsonnet;
 
 use super::{wit::edgechains, APIConfig, JSApiSet};
-use arakoo_jsonnet::{self, context};
+use arakoo_jsonnet::{self};
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
 use jrsonnet_evaluator::{
     function::builtin::{NativeCallback, NativeCallbackHandler},
     Val,
 };
-use quickjs_wasm_rs::{from_qjs_value, to_qjs_value};
+use quickjs_wasm_rs::to_qjs_value;
 // use jrsonnet_evaluator::function::
 
 pub(super) struct Jsonnet;
-
-static mut JSONNET_FUNC_MAP: Option<JSValue> = None;
 
 impl JSApiSet for Jsonnet {
     fn register(&self, runtime: &javy::Runtime, _config: &APIConfig) -> anyhow::Result<()> {

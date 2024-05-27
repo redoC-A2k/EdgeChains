@@ -68,20 +68,20 @@ static mut RUNTIME_INSTANCE: Option<Runtime> = None;
 //     }
 // }
 
-// fn on_reject(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
-//     // (*args).clone_into(&mut cloned_args);
-//     let mut qjs_value = Option::None;
-//     if (args.len() > 0) {
-//         for arg in args {
-//             qjs_value = Some(from_qjs_value(*arg).unwrap());
-//             println!("Arg reject : {:?}", qjs_value.as_ref().unwrap());
-//         }
-//         EXCEPTION.lock().unwrap().replace(qjs_value.unwrap());
-//         Ok(JSValue::Undefined)
-//     } else {
-//         Err(anyhow!("expected 1 argument, got {}", args.len()))
-//     }
-// }
+fn on_reject(context: &JSContextRef, _this: JSValueRef, args: &[JSValueRef]) -> Result<JSValue> {
+    // (*args).clone_into(&mut cloned_args);
+    let mut qjs_value = Option::None;
+    if args.len() > 0 {
+        for arg in args {
+            qjs_value = Some(from_qjs_value(*arg).unwrap());
+            println!("Arg reject : {:?}", qjs_value.as_ref().unwrap());
+        }
+        EXCEPTION.lock().unwrap().replace(qjs_value.unwrap());
+        Ok(JSValue::Undefined)
+    } else {
+        Err(anyhow!("expected 1 argument, got {}", args.len()))
+    }
+}
 
 /// Used by Wizer to preinitialize the module
 #[export_name = "wizer.initialize"]
