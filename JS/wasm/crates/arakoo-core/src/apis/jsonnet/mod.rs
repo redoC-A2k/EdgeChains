@@ -1,15 +1,19 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    sync::{Arc, Mutex},
+};
 
-use crate::apis::jsonnet;
+use crate::apis::{console, jsonnet};
 
 use super::{wit::edgechains, APIConfig, JSApiSet};
 use arakoo_jsonnet::{self};
 use javy::quickjs::{JSContextRef, JSValue, JSValueRef};
 use jrsonnet_evaluator::{
     function::builtin::{NativeCallback, NativeCallbackHandler},
-    Val,
+    Error, Val,
 };
-use quickjs_wasm_rs::to_qjs_value;
+use quickjs_wasm_rs::{from_qjs_value, to_qjs_value};
 // use jrsonnet_evaluator::function::
 
 pub(super) struct Jsonnet;
@@ -79,7 +83,11 @@ impl NativeCallbackHandler for NativeJSCallback {
         if args.len() > 0 {
             let args_str = serde_json::to_string(args).expect("Error converting args to JSON");
             let args_str = JSValue::String(args_str);
-            println!("Calling function: {} with args = {}", self.0, args_str.to_string());
+            println!(
+                "Calling function: {} with args = {}",
+                self.0,
+                args_str.to_string()
+            );
             result = func
                 .call(
                     &to_qjs_value(super_context, &JSValue::Undefined)
@@ -103,9 +111,79 @@ impl NativeCallbackHandler for NativeJSCallback {
                 .expect("Unable to call function");
             // let result = from_qjs_value(result).expect("Unable to convert qjs value to value");
         }
-        let result = result.as_str().unwrap();
-        println!("Result of calling JS function: {}", result);
-        Ok(Val::Str(result.into()))
+        if result.is_object() {
+            println!("Result is object");
+            let constructor = result
+                .get_property("constructor")
+                .expect("Unable to get constructor");
+            if !constructor.is_null_or_undefined() {
+                let constructor_name = constructor
+                    .get_property("name")
+                    .expect("Unable to find name in constructor")
+                    .to_string();
+                if constructor_name == "Promise" {
+                    let resolved_result: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+                    let resolved_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+                    let then_func = result
+                        .get_property("then")
+                        .expect("Unable to find then on promise");
+                    if then_func.is_function() {
+                        let resolved_result = resolved_result.clone();
+                        let resolved_error = resolved_error.clone();
+                        then_func
+                            .call(
+                                &result,
+                                &[
+                                    super_context
+                                        .wrap_callback(move |context, _this, args| {
+                                            resolved_result
+                                                .lock()
+                                                .unwrap()
+                                                .replace(args.get(0).unwrap().to_string());
+                                            Ok(JSValue::Undefined)
+                                        })
+                                        .expect("unable to wrap callback"),
+                                    super_context
+                                        .wrap_callback(move |context, _this, args| {
+                                            // resolvedError.replace(Some(args.get(0).unwrap().to_string()));
+                                            resolved_error
+                                                .lock()
+                                                .unwrap()
+                                                .replace(args.get(0).unwrap().to_string());
+                                            Ok(JSValue::Undefined)
+                                        })
+                                        .expect("Unable to wrap callback"),
+                                ],
+                            )
+                            .expect("Unable to call then function");
+                        super_context
+                            .execute_pending()
+                            .expect("Unable to execute pending tasks");
+                    } else {
+                        panic!("then is not a function");
+                    }
+
+                    let result = resolved_result.lock().unwrap();
+                    let error = resolved_error.lock().unwrap();
+                    if result.is_some() {
+                        Ok(Val::Str(result.as_ref().unwrap().into()))
+                    } else {
+                        Ok(Val::Str(error.as_ref().unwrap().into()))
+                    }
+                } else {
+                    Ok(Val::Str(
+                        "Unable to find constructor property of returned type from function".into(),
+                    ))
+                }
+            } else {
+                Ok(Val::Str("Result is an object but retuned object does not contain constructor function".into()))
+            }
+        } else if result.is_str() {
+            Ok(Val::Str(result.as_str().unwrap().into()))
+        } else {
+            // println!("Result is unknown");
+            Ok(Val::Str("Function does not return any result or promise".into()))
+        }
     }
 }
 

@@ -48,6 +48,30 @@ app.get("/func", (c) => {
   return c.json(JSON.parse(result));
 });
 
+app.get("/async-func/:id", async (c) => {
+  let id = c.req.param("id");
+  async function asyncGetAtodo(id) {
+    console.log(id)
+    try {
+      let response = await fetch(`https://jsonplaceholder.typicode.com/todos/${id}`);
+      let body = await response.json();
+      return JSON.stringify(body);
+    } catch (error) {
+      console.log("error occured");
+      console.log(error);
+      return c.json(output);
+    }
+  }
+
+  let result = jsonnet.extString("id", id).javascriptCallback("getAtodo", asyncGetAtodo).evaluateSnippet(`
+    local todo = std.parseJson(arakoo.native("getAtodo")(std.extVar("id")));
+  {
+    result : todo.title
+  }`);
+  console.log(result);
+  return c.json(JSON.parse(result));
+});
+
 app.get("/add", (c) => {
   function add(arg1, arg2, arg3) {
     console.log("Args recieved: ", arg1, arg2, arg3);

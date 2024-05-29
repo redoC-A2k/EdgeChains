@@ -86,17 +86,35 @@ if (!isArakoo) {
         
         javascriptCallback(name, func) {
             let numOfArgs = func.length;
-            if (numOfArgs > 0) {
-                this.#setFunc(name, (args) => {
-                    console.log("Args recieved: ", args)
-                    let result = eval(func)(...JSON.parse(args));
-                    return result.toString();
-                });
+            console.log("Constructor name is: ", func.constructor.name);
+            if (func.constructor && func.constructor.name === "AsyncFunction"){
+                console.log("In if part")
+                if (numOfArgs > 0) {
+                    this.#setFunc(name,async (args) => {
+                        console.log("Args recieved in async function: ", args)
+                        let result = await eval(func)(...JSON.parse(args));
+                        return result.toString();
+                    });
+                } else {
+                    this.#setFunc(name, async () => {
+                        let result = await eval(func)();
+                        return result;
+                    });
+                }
             } else {
-                this.#setFunc(name, () => {
-                    let result = eval(func)();
-                    return result;
-                });
+                console.log("In else part")
+                if (numOfArgs > 0) {
+                    this.#setFunc(name, (args) => {
+                        console.log("Args recieved: ", args)
+                        let result = eval(func)(...JSON.parse(args));
+                        return result.toString();
+                    });
+                } else {
+                    this.#setFunc(name, () => {
+                        let result = eval(func)();
+                        return result;
+                    });
+                }
             }
             __jsonnet_register_func(this.vm, name, numOfArgs);
             return this;
