@@ -51,7 +51,6 @@ app.get("/func", (c) => {
 app.get("/async-func/:id", async (c) => {
   let id = c.req.param("id");
   async function asyncGetAtodo(id) {
-    console.log(id)
     try {
       let response = await fetch(`https://jsonplaceholder.typicode.com/todos/${id}`);
       let body = await response.json();
@@ -68,7 +67,6 @@ app.get("/async-func/:id", async (c) => {
   {
     result : todo.title
   }`);
-  console.log(result);
   return c.json(JSON.parse(result));
 });
 
@@ -140,5 +138,5 @@ app.notFound((c) => {
     return c.text("404 not found", 404);
 });
 
-// app.fire();
-globalThis._export = app;
+app.fire();
+// globalThis._export = app;

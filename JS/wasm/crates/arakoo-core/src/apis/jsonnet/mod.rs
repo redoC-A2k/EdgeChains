@@ -13,6 +13,7 @@ use jrsonnet_evaluator::{
     function::builtin::{NativeCallback, NativeCallbackHandler},
     Error, Val,
 };
+use log::debug;
 use quickjs_wasm_rs::{from_qjs_value, to_qjs_value};
 // use jrsonnet_evaluator::function::
 
@@ -64,7 +65,7 @@ impl NativeCallbackHandler for NativeJSCallback {
         &self,
         args: &[jrsonnet_evaluator::Val],
     ) -> jrsonnet_evaluator::Result<jrsonnet_evaluator::Val> {
-        println!("NativeJSCallback called: {:?}", self.0);
+        debug!("NativeJSCallback called: {:?}", self.0);
         let super_context = **super::CONTEXT.get().unwrap();
         let global = super_context
             .global_object()
@@ -75,7 +76,7 @@ impl NativeCallbackHandler for NativeJSCallback {
         let func = func_map
             .get_property(self.0.clone())
             .expect("Unable to get property");
-        // println!(
+        // debug!(
         //     "func: {:?}",
         //     from_qjs_value(func).expect("Unable to convert map ref to map")
         // );
@@ -83,7 +84,7 @@ impl NativeCallbackHandler for NativeJSCallback {
         if args.len() > 0 {
             let args_str = serde_json::to_string(args).expect("Error converting args to JSON");
             let args_str = JSValue::String(args_str);
-            println!(
+            debug!(
                 "Calling function: {} with args = {}",
                 self.0,
                 args_str.to_string()
@@ -97,7 +98,7 @@ impl NativeCallbackHandler for NativeJSCallback {
                 )
                 .expect("Unable to call function");
             // let result = from_qjs_value(result).expect("Unable to convert qjs value to value");
-            // println!("Result of calling JS function: {}", result.as_str().unwrap());
+            // debug!("Result of calling JS function: {}", result.as_str().unwrap());
         } else {
             let emtpy_str = JSValue::String("".to_string());
             let context = **super::CONTEXT.get().unwrap();
@@ -112,7 +113,7 @@ impl NativeCallbackHandler for NativeJSCallback {
             // let result = from_qjs_value(result).expect("Unable to convert qjs value to value");
         }
         if result.is_object() {
-            println!("Result is object");
+            debug!("Result is object");
             let constructor = result
                 .get_property("constructor")
                 .expect("Unable to get constructor");
@@ -181,7 +182,7 @@ impl NativeCallbackHandler for NativeJSCallback {
         } else if result.is_str() {
             Ok(Val::Str(result.as_str().unwrap().into()))
         } else {
-            // println!("Result is unknown");
+            // debug!("Result is unknown");
             Ok(Val::Str("Function does not return any result or promise".into()))
         }
     }
@@ -231,7 +232,7 @@ fn jsonnet_evaluate_snippet_closure(
             "snippet",
             code,
         );
-        println!("Result of evaluating snippet: {}", out.to_string());
+        debug!("Result of evaluating snippet: {}", out.to_string());
         Ok(out.into())
     }
 }
@@ -277,7 +278,7 @@ fn jsonnet_register_func_closure(
                 func_name.clone(),
                 NativeCallback::new(args_vec, NativeJSCallback(func_name.clone())),
             );
-        println!("Registered function: {}", func_name);
+        debug!("Registered function: {}", func_name);
         Ok(JSValue::Undefined)
     }
 }

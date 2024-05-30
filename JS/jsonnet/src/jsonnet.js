@@ -86,12 +86,12 @@ if (!isArakoo) {
         
         javascriptCallback(name, func) {
             let numOfArgs = func.length;
-            console.log("Constructor name is: ", func.constructor.name);
+            console.debug("Constructor name is: ", func.constructor.name);
             if (func.constructor && func.constructor.name === "AsyncFunction"){
-                console.log("In if part")
+                console.debug("In if part")
                 if (numOfArgs > 0) {
                     this.#setFunc(name,async (args) => {
-                        console.log("Args recieved in async function: ", args)
+                        console.debug("Args recieved in async function: ", args)
                         let result = await eval(func)(...JSON.parse(args));
                         return result.toString();
                     });
@@ -102,10 +102,10 @@ if (!isArakoo) {
                     });
                 }
             } else {
-                console.log("In else part")
+                console.debug("In else part")
                 if (numOfArgs > 0) {
                     this.#setFunc(name, (args) => {
-                        console.log("Args recieved: ", args)
+                        console.debug("Args recieved: ", args)
                         let result = eval(func)(...JSON.parse(args));
                         return result.toString();
                     });
