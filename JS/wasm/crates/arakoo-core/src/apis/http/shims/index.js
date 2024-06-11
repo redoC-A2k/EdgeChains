@@ -173,10 +173,7 @@ class Request {
         }
         this.headers = input.headers;
         this.method = input.method;
-        let bodyArray = new Uint8Array(input.body);
-        let bodyString = decoder.decode(bodyArray);
-        if (bodyString != undefined && bodyString.length > 0)
-            this.body = JSON.parse(bodyString);
+        this.body = input.body;
         this.params = input.params || {};
         this.geo = input.geo || {};
     }
@@ -355,6 +352,7 @@ function fetch(uri, options) {
         options.headers = uri.headers;
         options.method = uri.method;
         options.params = uri.params;
+        options.body = uri.body;
         options.geo = uri.geo;
         uri = uri.url;
     }
